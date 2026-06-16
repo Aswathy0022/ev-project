@@ -13,17 +13,21 @@ interface SliderProps {
 
 export function Slider({ label, value, min, max, step = 1, unit = "", onChange, className }: SliderProps) {
   const pct = ((value - min) / (max - min)) * 100;
+  const sliderId = label.toLowerCase().replace(/\s+/g, "-") + "-slider";
 
   return (
     <div className={cn("flex flex-col gap-2", className)}>
       <div className="flex items-center justify-between">
-        <label className="text-xs font-medium text-muted">{label}</label>
+        <label htmlFor={sliderId} className="text-xs font-medium text-muted">
+          {label}
+        </label>
         <span className="text-sm font-semibold text-foreground font-mono">
           {value}{unit}
         </span>
       </div>
       <div className="relative">
         <input
+          id={sliderId}
           type="range"
           min={min}
           max={max}

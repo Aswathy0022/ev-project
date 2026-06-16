@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Zap, Map, ChevronRight, ArrowRight } from "lucide-react";
+import { Zap, Map, Bolt, ChevronRight, ArrowRight } from "lucide-react";
 
 const features = [
   {
@@ -17,7 +17,7 @@ const features = [
     color: "green",
   },
   {
-    icon: Zap,
+    icon: Bolt,
     title: "Find Charger",
     description: "Discover nearby charging stations ranked by distance, speed, and availability.",
     href: "/charger-finder",

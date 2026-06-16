@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Bolt, Search, MapPin, Clock, Zap, Filter } from "lucide-react";
+import { Bolt, Search, MapPin, Clock, Zap, Filter, CheckCircle2, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { stations, geocode, type Station } from "@/lib/api";
 import { Card } from "@/components/ui/Card";
@@ -32,7 +32,9 @@ function StationCard({ station, rank }: { station: Station; rank: number }) {
           <p className="text-xs text-[var(--muted)] mt-0.5 ml-7">{station.city}</p>
         </div>
         <Badge variant={available ? "success" : "danger"}>
-          {available ? "Available" : "Busy"}
+          {available
+            ? <><CheckCircle2 className="h-3 w-3" />Available</>
+            : <><XCircle className="h-3 w-3" />Busy</>}
         </Badge>
       </div>
 

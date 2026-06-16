@@ -50,6 +50,8 @@ def rank_stations(body: StationRankRequest, db: Session = Depends(get_db)):
 
 
 @router.get("/offline-cities")
-def offline_cities():
-    from services.geocoding_service import get_offline_place_options
-    return get_offline_place_options()
+def offline_cities(db: Session = Depends(get_db)):
+    from models.db import City
+    city_names = {c.display_name.split(",")[0].strip() for c in db.query(City).all()}
+    station_cities = {row.city for row in db.query(Station.city).distinct() if row.city}
+    return sorted(city_names | station_cities)

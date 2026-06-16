@@ -3,7 +3,7 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from models.db import Station, User, init_db, engine
+from models.db import City, Station, User, init_db, engine
 from sqlalchemy.orm import Session
 from routers import auth, geocode, history, predict, stations, trips, vehicles
 from routers import admin
@@ -51,6 +51,16 @@ def _seed_stations(db: Session) -> None:
     db.commit()
 
 
+def _seed_cities(db: Session) -> None:
+    if db.query(City).first():
+        return
+    from services.geocoding_service import SEED_CITY_MAP
+    for name, (lat, lon, display_name) in SEED_CITY_MAP.items():
+        if not db.query(City).filter(City.name == name).first():
+            db.add(City(name=name, display_name=display_name, lat=lat, lon=lon))
+    db.commit()
+
+
 def _seed_admin(db: Session) -> None:
     admin_email = os.getenv("ADMIN_EMAIL", "admin@voltiq.dev")
     admin_password = os.getenv("ADMIN_PASSWORD", "admin123")
@@ -77,6 +87,7 @@ def startup():
     db = Session(engine)
     try:
         _seed_stations(db)
+        _seed_cities(db)
         _seed_admin(db)
     finally:
         db.close()

@@ -135,6 +135,14 @@ export interface StationIn {
   load_kw: number; status: string;
 }
 
+export interface CityAdmin {
+  id: number; name: string; display_name: string; lat: number; lon: number;
+}
+
+export interface CityIn {
+  name: string; display_name: string; lat: number; lon: number;
+}
+
 export const adminApi = {
   listStations: () => apiFetch<StationAdmin[]>("/admin/stations"),
   createStation: (body: StationIn) =>
@@ -143,4 +151,11 @@ export const adminApi = {
     apiFetch<StationAdmin>(`/admin/stations/${id}`, { method: "PUT", body: JSON.stringify(body) }),
   deleteStation: (id: number) =>
     apiFetch<void>(`/admin/stations/${id}`, { method: "DELETE" }),
+  listCities: () => apiFetch<CityAdmin[]>("/admin/cities"),
+  createCity: (body: CityIn) =>
+    apiFetch<CityAdmin>("/admin/cities", { method: "POST", body: JSON.stringify(body) }),
+  updateCity: (id: number, body: CityIn) =>
+    apiFetch<CityAdmin>(`/admin/cities/${id}`, { method: "PUT", body: JSON.stringify(body) }),
+  deleteCity: (id: number) =>
+    apiFetch<void>(`/admin/cities/${id}`, { method: "DELETE" }),
 };

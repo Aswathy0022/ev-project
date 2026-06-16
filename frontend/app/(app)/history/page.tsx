@@ -64,8 +64,8 @@ export default function HistoryPage() {
     );
   }
 
-  const chartData = entries.slice(0, 10).reverse().map((e, i) => ({
-    name: `#${i + 1}`,
+  const chartData = entries.slice(0, 10).reverse().map((e) => ({
+    name: e.session_time.slice(5, 10),
     energy: e.energy_drawn_kwh,
     battery: e.battery_percent,
   }));
@@ -115,11 +115,29 @@ export default function HistoryPage() {
         </Card>
       )}
 
-      {/* Session table */}
+      {/* Session list */}
       {entries.length > 0 ? (
         <Card>
           <h3 className="text-xs font-semibold text-[var(--muted)] uppercase tracking-wider mb-4">Recent Sessions</h3>
-          <div className="overflow-x-auto">
+
+          {/* Mobile card list */}
+          <div className="sm:hidden divide-y divide-white/5">
+            {entries.map((e) => (
+              <div key={e.id} className="flex justify-between items-center py-3 first:pt-0 last:pb-0">
+                <div className="min-w-0 pr-3">
+                  <p className="text-xs font-medium truncate">{e.station_name}</p>
+                  <p className="text-xs text-[var(--muted)] mt-0.5">{e.session_time.slice(0, 10)}</p>
+                </div>
+                <div className="text-right shrink-0 space-y-0.5">
+                  <p className="text-xs font-mono font-semibold">{e.energy_drawn_kwh} kWh</p>
+                  <p className="text-xs text-[var(--muted)] font-mono">{e.battery_percent}% · {formatMinutes(e.charge_minutes)}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop table */}
+          <div className="hidden sm:block overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-xs text-[var(--muted)] border-b border-white/8">

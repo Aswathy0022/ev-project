@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-OFFLINE_PLACE_MAP = {
+# Used only at startup to seed the cities DB table. Not used at runtime.
+SEED_CITY_MAP: dict[str, tuple[float, float, str]] = {
     "kochi": (9.9312, 76.2673, "Kochi, Kerala, India"),
     "cochin": (9.9312, 76.2673, "Kochi, Kerala, India"),
     "ernakulam": (9.9816, 76.2999, "Ernakulam, Kerala, India"),
@@ -74,10 +75,6 @@ OFFLINE_PLACE_MAP = {
     "perambalur": (11.2342, 78.8806, "Perambalur, Tamil Nadu, India"),
 }
 
-OFFLINE_PLACE_OPTIONS = sorted(
-    {entry[2].split(",")[0].strip() for entry in OFFLINE_PLACE_MAP.values()}
-)
-
 
 @dataclass
 class GeocodeResult:
@@ -99,15 +96,10 @@ def _parse_coordinate_text(place_text: str) -> GeocodeResult | None:
     return GeocodeResult(lat=lat, lon=lon, label=f"{lat:.5f}, {lon:.5f}", status="success", message="Used coordinates directly.")
 
 
-def _offline_place_lookup(place_text: str) -> GeocodeResult | None:
-    key = place_text.strip().lower()
-    if key in OFFLINE_PLACE_MAP:
-        lat, lon, label = OFFLINE_PLACE_MAP[key]
-        return GeocodeResult(lat=lat, lon=lon, label=label, status="success", message=f"Offline match: {label}")
-    return None
-
-
-def geocode_place(place_text: str) -> GeocodeResult:
+def geocode_place(
+    place_text: str,
+    city_map: dict[str, tuple[float, float, str]] | None = None,
+) -> GeocodeResult:
     place_text = (place_text or "").strip()
     if not place_text:
         return GeocodeResult(None, None, None, "empty", "Enter a place name.")
@@ -116,9 +108,11 @@ def geocode_place(place_text: str) -> GeocodeResult:
     if parsed:
         return parsed
 
-    offline = _offline_place_lookup(place_text)
-    if offline:
-        return offline
+    if city_map:
+        key = place_text.strip().lower()
+        if key in city_map:
+            lat, lon, label = city_map[key]
+            return GeocodeResult(lat=lat, lon=lon, label=label, status="success", message=f"Matched: {label}")
 
     try:
         from geopy.exc import GeocoderServiceError, GeocoderTimedOut, GeocoderUnavailable
@@ -139,7 +133,3 @@ def geocode_place(place_text: str) -> GeocodeResult:
         lat=float(location.latitude), lon=float(location.longitude),
         label=location.address, status="success", message=f"Found: {location.address}",
     )
-
-
-def get_offline_place_options() -> list[str]:
-    return OFFLINE_PLACE_OPTIONS.copy()

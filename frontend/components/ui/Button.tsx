@@ -33,6 +33,7 @@ export function Button({
 }: ButtonProps) {
   return (
     <button
+      type="button"
       disabled={disabled || loading}
       className={cn(
         "inline-flex items-center justify-center gap-2 transition-all duration-200 active:scale-[0.98]",

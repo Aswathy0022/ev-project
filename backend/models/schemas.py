@@ -205,3 +205,20 @@ class GeocodeResponse(BaseModel):
     label: str | None
     status: str
     message: str
+
+
+# ── Cities ────────────────────────────────────────────────────────────────────
+
+class CityIn(BaseModel):
+    name: str
+    display_name: str
+    lat: float
+    lon: float
+
+
+class CityOut(BaseModel):
+    id: int
+    name: str
+    display_name: str
+    lat: float
+    lon: float

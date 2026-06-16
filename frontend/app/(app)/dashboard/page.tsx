@@ -15,33 +15,39 @@ import { useEffect } from "react";
 import { formatKm, formatMinutes } from "@/lib/utils";
 
 const WEATHER_OPTIONS = [
-  { value: "Clear", label: "☀️ Clear" },
-  { value: "Cloudy", label: "⛅ Cloudy" },
-  { value: "Rain", label: "🌧️ Rain" },
-  { value: "Storm", label: "⛈️ Storm" },
+  { value: "Clear", label: "Clear" },
+  { value: "Cloudy", label: "Cloudy" },
+  { value: "Rain", label: "Rain" },
+  { value: "Storm", label: "Storm" },
 ];
 const RIDE_MODES = [
-  { value: "Eco", label: "🌿 Eco" },
-  { value: "Normal", label: "⚡ Normal" },
-  { value: "Sport", label: "🏎️ Sport" },
+  { value: "Eco", label: "Eco" },
+  { value: "Normal", label: "Normal" },
+  { value: "Sport", label: "Sport" },
 ];
 const TERRAINS = [
-  { value: "City roads", label: "🏙️ City roads" },
-  { value: "Highway", label: "🛣️ Highway" },
-  { value: "Hill roads", label: "⛰️ Hill roads" },
-  { value: "Rough roads", label: "🪨 Rough roads" },
+  { value: "City roads", label: "City roads" },
+  { value: "Highway", label: "Highway" },
+  { value: "Hill roads", label: "Hill roads" },
+  { value: "Rough roads", label: "Rough roads" },
 ];
 const TRAFFIC_OPTIONS = [
-  { value: "Light traffic", label: "🟢 Light traffic" },
-  { value: "Moderate traffic", label: "🟡 Moderate traffic" },
-  { value: "Heavy traffic", label: "🔴 Heavy traffic" },
+  { value: "Light traffic", label: "Light traffic" },
+  { value: "Moderate traffic", label: "Moderate traffic" },
+  { value: "Heavy traffic", label: "Heavy traffic" },
 ];
+
+function getSaved(key: string, fallback: number): number {
+  if (typeof window === "undefined") return fallback;
+  const v = localStorage.getItem(key);
+  return v !== null ? Number(v) : fallback;
+}
 
 export default function DashboardPage() {
   const [vehicleList, setVehicleList] = useState<Vehicle[]>([]);
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
-  const [battery, setBattery] = useState(65);
-  const [health, setHealth] = useState(92);
+  const [battery, setBattery] = useState(() => getSaved("voltiq-battery", 65));
+  const [health, setHealth] = useState(() => getSaved("voltiq-health", 92));
   const [temperature, setTemperature] = useState(28);
   const [weather, setWeather] = useState("Clear");
   const [rideMode, setRideMode] = useState("Normal");
@@ -59,22 +65,37 @@ export default function DashboardPage() {
   useEffect(() => {
     vehicles.list().then((v) => {
       setVehicleList(v);
-      if (v.length > 0) setSelectedVehicle(v[0]);
+      if (v.length > 0) {
+        const savedName = localStorage.getItem("voltiq-vehicle");
+        const saved = savedName ? v.find((x) => x.name === savedName) : null;
+        setSelectedVehicle(saved ?? v[0]);
+      }
     }).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    localStorage.setItem("voltiq-battery", String(battery));
+  }, [battery]);
+
+  useEffect(() => {
+    localStorage.setItem("voltiq-health", String(health));
+  }, [health]);
+
+  useEffect(() => {
+    if (selectedVehicle) localStorage.setItem("voltiq-vehicle", selectedVehicle.name);
+  }, [selectedVehicle]);
 
   const handlePredict = async () => {
     if (!selectedVehicle) return;
     setLoading(true);
     try {
-      const [rangeRes, readinessRes, ct80, ct100] = await Promise.all([
+      const [rangeRes, ct80, ct100] = await Promise.all([
         predict.range({
           battery_level: battery, temperature, weather, battery_health: health,
           vehicle_base_range_km: selectedVehicle.base_range_km,
           ride_mode: rideMode, terrain, traffic,
           rider_weight_kg: weight, luggage_kg: luggage,
         }),
-        predict.readiness(0).then(() => null).catch(() => null), // placeholder
         predict.chargeTime({ battery_level: battery, charging_rate_kw: 30, charging_load_kw: 20, battery_health: health, target_level: 80, charge_bias: selectedVehicle.fast_charge_bias }),
         predict.chargeTime({ battery_level: battery, charging_rate_kw: 30, charging_load_kw: 20, battery_health: health, target_level: 100, charge_bias: selectedVehicle.full_charge_bias }),
       ]);
@@ -121,6 +142,7 @@ export default function DashboardPage() {
             {tabs.map((t) => (
               <button
                 key={t.id}
+                type="button"
                 onClick={() => setActiveTab(t.id)}
                 className={`flex-1 rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${
                   activeTab === t.id
@@ -169,6 +191,11 @@ export default function DashboardPage() {
 
         {/* Results */}
         <div className="space-y-4">
+          {/* Decision banner at top of results column */}
+          {readiness && (
+            <DecisionBanner decision={readiness.decision} detail={readiness.detail} />
+          )}
+
           {/* Battery ring */}
           <Card className="flex flex-col items-center py-6">
             <ProgressRing value={battery} label="Battery" size={130} />
@@ -216,16 +243,11 @@ export default function DashboardPage() {
           ) : (
             <Card className="flex flex-col items-center justify-center py-10 text-center">
               <Battery className="h-8 w-8 text-[var(--muted)] mb-2" />
-              <p className="text-sm text-[var(--muted)]">Set your conditions and tap Predict</p>
+              <p className="text-sm text-[var(--muted)]">Set your conditions and tap Predict range</p>
             </Card>
           )}
         </div>
       </div>
-
-      {/* Decision banner */}
-      {readiness && (
-        <DecisionBanner decision={readiness.decision} detail={readiness.detail} />
-      )}
     </div>
   );
 }

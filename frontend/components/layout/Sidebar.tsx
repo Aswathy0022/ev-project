@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Zap, LayoutDashboard, Map, Bolt, History, LogOut, User, Menu, X, ShieldCheck } from "lucide-react";
+import { Zap, LayoutDashboard, Map, Bolt, History, LogOut, User, Menu, X, ShieldCheck, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -16,6 +16,14 @@ const navItems = [
   { href: "/admin", label: "Admin", icon: ShieldCheck, adminOnly: true },
 ];
 
+const pathToLabel: Record<string, string> = {
+  "/dashboard": "Battery Check",
+  "/trip-planner": "Trip Planner",
+  "/charger-finder": "Find Charger",
+  "/history": "History",
+  "/admin": "Admin",
+};
+
 function NavLink({ href, label, icon: Icon, authOnly, adminOnly, user }: {
   href: string; label: string; icon: React.ElementType;
   authOnly?: boolean; adminOnly?: boolean;
@@ -24,8 +32,17 @@ function NavLink({ href, label, icon: Icon, authOnly, adminOnly, user }: {
   const pathname = usePathname();
   const active = pathname === href;
 
-  if (authOnly && !user) return null;
   if (adminOnly && !user?.is_admin) return null;
+
+  if (authOnly && !user) {
+    return (
+      <span className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-muted/40 cursor-not-allowed select-none">
+        <Icon className="h-4 w-4" />
+        {label}
+        <Lock className="h-3 w-3 ml-auto" />
+      </span>
+    );
+  }
 
   const isAdmin = adminOnly;
 
@@ -52,6 +69,7 @@ function NavLink({ href, label, icon: Icon, authOnly, adminOnly, user }: {
 export function Sidebar() {
   const { user, logout } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
   const [open, setOpen] = useState(false);
 
   const handleLogout = async () => {
@@ -91,6 +109,7 @@ export function Sidebar() {
               </div>
             </div>
             <button
+              type="button"
               onClick={handleLogout}
               className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm text-muted hover:bg-white/5 hover:text-foreground transition-all"
             >
@@ -125,8 +144,19 @@ export function Sidebar() {
         <div className="flex items-center gap-2">
           <Zap className="h-5 w-5 text-cyan-400" />
           <span className="font-bold text-sm">VoltIQ</span>
+          {pathToLabel[pathname] && (
+            <span className="text-xs text-muted before:content-['/'] before:mx-1.5 before:opacity-40">
+              {pathToLabel[pathname]}
+            </span>
+          )}
         </div>
-        <button onClick={() => setOpen(!open)} className="p-1.5 rounded-lg hover:bg-white/8">
+        <button
+          type="button"
+          onClick={() => setOpen(!open)}
+          className="p-1.5 rounded-lg hover:bg-white/8"
+          aria-label={open ? "Close navigation" : "Open navigation"}
+          aria-expanded={open}
+        >
           {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
         </button>
       </header>
