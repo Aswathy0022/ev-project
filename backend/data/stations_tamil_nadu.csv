@@ -1,0 +1,19 @@
+station_name,city,latitude,longitude,free_slots,total_slots,wait_minutes,rate_kw,load_kw,status
+Chennai Central Fast Charge,Chennai,13.0674,80.2551,4,8,6,60,42,Available
+OMR Tech Corridor Charger,Chennai,12.9121,80.2295,3,6,10,50,39,Available
+Coimbatore Smart Hub,Coimbatore,11.0276,76.9449,5,8,5,55,34,Available
+Gandhipuram Quick Charge,Coimbatore,11.0183,76.9725,2,6,11,45,38,Busy
+Madurai EV Plaza,Madurai,9.9368,78.1301,4,7,7,50,36,Available
+Mattuthavani Charge Point,Madurai,9.9502,78.1557,2,5,14,40,33,Busy
+Trichy Junction EV Point,Tiruchirappalli,10.8062,78.6968,3,6,9,50,37,Available
+Srirangam Charge Bay,Tiruchirappalli,10.8629,78.6931,2,5,12,40,32,Busy
+Salem Highway Charger,Salem,11.6759,78.1374,3,6,8,45,31,Available
+Tiruppur Knit City Charge,Tiruppur,11.1085,77.3411,4,7,6,45,30,Available
+Erode Central Station,Erode,11.3294,77.7061,3,6,7,45,29,Available
+Hosur EV Connect,Hosur,12.7298,77.8364,4,8,5,60,41,Available
+Vellore Green Charge,Vellore,12.9048,79.1446,2,5,13,40,35,Busy
+Thoothukudi Port Charge,Thoothukudi,8.7529,78.1457,3,6,8,45,30,Available
+Tirunelveli South Charge,Tirunelveli,8.7255,77.7446,4,6,7,45,28,Available
+Nagercoil Mobility Hub,Nagercoil,8.1951,77.4232,3,5,9,40,29,Available
+Ooty Hill Charge,Ooty,11.4147,76.7048,2,4,15,35,27,Busy
+Kumbakonam Temple City Charge,Kumbakonam,10.9722,79.3984,3,5,8,40,28,Available
