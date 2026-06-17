@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
-import { Map, Navigation, ArrowRight, MapPin, Zap } from "lucide-react";
+import { Map, Navigation, ArrowRight, MapPin, Zap, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { predict, trips, geocode, vehicles, type TripResult, type Vehicle } from "@/lib/api";
 import { Card } from "@/components/ui/Card";
@@ -60,6 +60,8 @@ export default function TripPlannerPage() {
   const [result, setResult] = useState<TripResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [routeCoords, setRouteCoords] = useState<{ origin: [number, number]; destination: [number, number] } | null>(null);
+  const [activeTab, setActiveTab] = useState<"vehicle" | "conditions">("vehicle");
+  const [formCollapsed, setFormCollapsed] = useState(false);
 
   useEffect(() => {
     vehicles.list().then((v) => {
@@ -109,12 +111,18 @@ export default function TripPlannerPage() {
         safety_buffer_percent: safetyBuffer,
       });
       setResult(tripRes);
+      setFormCollapsed(true);
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : "Trip planning failed");
     } finally {
       setLoading(false);
     }
   };
+
+  const tabs = [
+    { id: "vehicle", label: "Vehicle & Battery" },
+    { id: "conditions", label: "Conditions" },
+  ] as const;
 
   return (
     <div className="space-y-6">
@@ -123,8 +131,22 @@ export default function TripPlannerPage() {
         <p className="text-sm text-[var(--muted)] mt-1">Check if your battery can make the journey</p>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
-        {/* Form */}
+      <div className="grid gap-6">
+        {/* Form — collapses to a summary once a result exists, so the result gets the room */}
+        {formCollapsed && result ? (
+          <Card className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-2 text-sm">
+              <span className="font-medium">{origin}</span>
+              <ArrowRight className="h-3.5 w-3.5 text-[var(--muted)]" />
+              <span className="font-medium">{destination}</span>
+              <span className="text-[var(--muted)]">· {selectedVehicle?.name} · {battery}% battery</span>
+            </div>
+            <Button variant="secondary" size="sm" onClick={() => setFormCollapsed(false)}>
+              <Pencil className="h-3.5 w-3.5" />
+              Edit
+            </Button>
+          </Card>
+        ) : (
         <Card className="space-y-5">
           <div className="space-y-3">
             <h3 className="text-xs font-semibold text-[var(--muted)] uppercase tracking-wider">Route</h3>
@@ -158,113 +180,135 @@ export default function TripPlannerPage() {
 
           <div className="h-px bg-white/8" />
 
-          <div className="space-y-4">
-            <h3 className="text-xs font-semibold text-[var(--muted)] uppercase tracking-wider">Vehicle</h3>
-            <Select
-              label="Vehicle"
-              value={selectedVehicle?.name ?? ""}
-              onChange={(e) => setSelectedVehicle(vehicleList.find((v) => v.name === e.target.value) ?? null)}
-              options={vehicleList.map((v) => ({ value: v.name, label: v.name }))}
-            />
-            <div className="grid grid-cols-2 gap-3">
-              <Slider label="Battery" value={battery} min={0} max={100} unit="%" onChange={setBattery} />
+          {/* Tabs — collapse Vehicle/Battery + Conditions so defaults stay out of the way */}
+          <div className="flex gap-1 rounded-xl bg-white/4 p-1">
+            {tabs.map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => setActiveTab(t.id)}
+                className={`flex-1 rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${
+                  activeTab === t.id
+                    ? "bg-white/10 text-foreground shadow-sm"
+                    : "text-[var(--muted)] hover:text-foreground"
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+
+          {activeTab === "vehicle" && (
+            <div className="space-y-4">
+              <Select
+                label="Vehicle"
+                value={selectedVehicle?.name ?? ""}
+                onChange={(e) => setSelectedVehicle(vehicleList.find((v) => v.name === e.target.value) ?? null)}
+                options={vehicleList.map((v) => ({ value: v.name, label: v.name }))}
+              />
+              <div className="grid grid-cols-2 gap-3">
+                <Slider label="Battery" value={battery} min={0} max={100} unit="%" onChange={setBattery} />
+                <Slider
+                  label="Health"
+                  value={health}
+                  min={60}
+                  max={100}
+                  unit="%"
+                  onChange={setHealth}
+                  hint="Battery health degrades over time. Find in your vehicle app or estimate based on age."
+                />
+              </div>
+            </div>
+          )}
+
+          {activeTab === "conditions" && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <Select label="Weather" value={weather} onChange={(e) => setWeather(e.target.value)} options={WEATHER_OPTIONS} />
+                <Select label="Terrain" value={terrain} onChange={(e) => setTerrain(e.target.value)} options={TERRAINS} />
+                <Select label="Traffic" value={traffic} onChange={(e) => setTraffic(e.target.value)} options={TRAFFIC_OPTIONS} />
+                <Slider label="Temp" value={temperature} min={-10} max={50} unit="°C" onChange={setTemperature} />
+              </div>
               <Slider
-                label="Health"
-                value={health}
-                min={60}
-                max={100}
+                label="Safety buffer"
+                value={safetyBuffer}
+                min={5}
+                max={30}
                 unit="%"
-                onChange={setHealth}
-                hint="Battery health degrades over time. Find in your vehicle app or estimate based on age."
+                onChange={setSafetyBuffer}
+                hint="Extra range margin added on top of trip distance. 15% = if trip is 50 km, you need 57.5 km range. Higher = safer."
               />
             </div>
-          </div>
-
-          <div className="h-px bg-white/8" />
-
-          <div className="space-y-4">
-            <h3 className="text-xs font-semibold text-[var(--muted)] uppercase tracking-wider">Conditions</h3>
-            <div className="grid grid-cols-2 gap-3">
-              <Select label="Weather" value={weather} onChange={(e) => setWeather(e.target.value)} options={WEATHER_OPTIONS} />
-              <Select label="Terrain" value={terrain} onChange={(e) => setTerrain(e.target.value)} options={TERRAINS} />
-              <Select label="Traffic" value={traffic} onChange={(e) => setTraffic(e.target.value)} options={TRAFFIC_OPTIONS} />
-              <Slider label="Temp" value={temperature} min={-10} max={50} unit="°C" onChange={setTemperature} />
-            </div>
-            <Slider
-              label="Safety buffer"
-              value={safetyBuffer}
-              min={5}
-              max={30}
-              unit="%"
-              onChange={setSafetyBuffer}
-              hint="Extra range margin added on top of trip distance. 15% = if trip is 50 km, you need 57.5 km range. Higher = safer."
-            />
-          </div>
+          )}
 
           <Button onClick={handlePlan} loading={loading} size="lg" className="w-full">
             <Map className="h-4 w-4" />
             Plan trip
           </Button>
         </Card>
+        )}
 
-        {/* Results — A: DecisionBanner at top */}
+        {/* Results — always below the form, compact grid so it fits in one screen */}
         <div className="space-y-4">
           {result ? (
             <>
-              {/* A: banner first */}
               <DecisionBanner decision={result.decision} detail={result.detail} />
 
-              {routeCoords && (
-                <Card className="p-0 overflow-hidden">
-                  <MapView
-                    height={280}
-                    polyline={[routeCoords.origin, routeCoords.destination]}
-                    markers={[
-                      { position: routeCoords.origin, kind: "origin", popup: "From" },
-                      { position: routeCoords.destination, kind: "destination", popup: "To" },
-                      ...(result.backup_station
-                        ? [{
-                            position: [result.backup_station.latitude, result.backup_station.longitude] as [number, number],
-                            kind: "stationAvailable" as const,
-                            popup: (
-                              <div className="text-xs">
-                                <p className="font-semibold">{result.backup_station.name}</p>
-                                <p>{formatKm(result.backup_station.distance_km)} away · {formatMinutes(result.backup_station.wait_minutes)} wait</p>
-                              </div>
-                            ),
-                          }] as MapMarker[]
-                        : []),
-                    ]}
-                  />
-                </Card>
-              )}
+              <div className="grid gap-4 sm:grid-cols-2">
+                <MetricCard label="Trip Distance" value={formatKm(result.trip_distance_km)} icon={Map} color="accent" />
+                <MetricCard
+                  label="Range Needed"
+                  value={formatKm(result.needed_range_km)}
+                  icon={Zap}
+                  color={result.remaining_range_km >= 0 ? "success" : "danger"}
+                  subtext={`Remaining after trip: ${formatKm(result.remaining_range_km)}`}
+                />
+              </div>
 
-              <MetricCard label="Trip Distance" value={formatKm(result.trip_distance_km)} icon={Map} color="accent" />
-              <MetricCard
-                label="Range Needed"
-                value={formatKm(result.needed_range_km)}
-                icon={Zap}
-                color={result.remaining_range_km >= 0 ? "success" : "danger"}
-                subtext={`Remaining after trip: ${formatKm(result.remaining_range_km)}`}
-              />
+              <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
+                {routeCoords && (
+                  <Card className="p-0 overflow-hidden">
+                    <MapView
+                      height={260}
+                      polyline={[routeCoords.origin, routeCoords.destination]}
+                      markers={[
+                        { position: routeCoords.origin, kind: "origin", popup: "From" },
+                        { position: routeCoords.destination, kind: "destination", popup: "To" },
+                        ...(result.backup_station
+                          ? [{
+                              position: [result.backup_station.latitude, result.backup_station.longitude] as [number, number],
+                              kind: "stationAvailable" as const,
+                              popup: (
+                                <div className="text-xs">
+                                  <p className="font-semibold">{result.backup_station.name}</p>
+                                  <p>{formatKm(result.backup_station.distance_km)} away · {formatMinutes(result.backup_station.wait_minutes)} wait</p>
+                                </div>
+                              ),
+                            }] as MapMarker[]
+                          : []),
+                      ]}
+                    />
+                  </Card>
+                )}
 
-              {result.backup_station && (
-                <Card>
-                  <h3 className="text-xs font-semibold text-[var(--muted)] uppercase tracking-wider mb-3">Nearest Charger</h3>
-                  <p className="font-medium text-sm">{result.backup_station.name}</p>
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    <Badge variant="accent">{formatKm(result.backup_station.distance_km)} away</Badge>
-                    <Badge variant="default">{formatMinutes(result.backup_station.wait_minutes)} wait</Badge>
-                    <Badge variant="success">{result.backup_station.rate_kw} kW</Badge>
-                    <Badge variant={result.backup_station.free_slots > 0 ? "success" : "danger"}>
-                      {result.backup_station.free_slots} slots
-                    </Badge>
-                  </div>
-                </Card>
-              )}
+                {result.backup_station && (
+                  <Card>
+                    <h3 className="text-xs font-semibold text-[var(--muted)] uppercase tracking-wider mb-3">Nearest Charger</h3>
+                    <p className="font-medium text-sm">{result.backup_station.name}</p>
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      <Badge variant="accent">{formatKm(result.backup_station.distance_km)} away</Badge>
+                      <Badge variant="default">{formatMinutes(result.backup_station.wait_minutes)} wait</Badge>
+                      <Badge variant="success">{result.backup_station.rate_kw} kW</Badge>
+                      <Badge variant={result.backup_station.free_slots > 0 ? "success" : "danger"}>
+                        {result.backup_station.free_slots} slots
+                      </Badge>
+                    </div>
+                  </Card>
+                )}
+              </div>
             </>
           ) : (
-            <Card className="flex flex-col items-center justify-center py-12 text-center">
+            <Card className="flex flex-col items-center justify-center py-10 text-center">
               <Map className="h-8 w-8 text-[var(--muted)] mb-2" />
               <p className="text-sm text-[var(--muted)]">Enter your route and tap Plan trip</p>
             </Card>

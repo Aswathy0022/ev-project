@@ -222,38 +222,47 @@ export default function ChargerFinderPage() {
         </p>
       </Card>
 
-      {/* Map */}
-      {userCoords && (
-        <Card className="p-0 overflow-hidden">
-          <MapView
-            height={360}
-            markers={[
-              { position: userCoords, kind: "user", popup: "Your location" },
-              ...stationList.map((s): MapMarker => ({
-                position: [s.latitude, s.longitude],
-                kind: s.free_slots > 0 ? "stationAvailable" : "stationBusy",
-                popup: (
-                  <div className="text-xs">
-                    <p className="font-semibold">{s.station_name}</p>
-                    <p>{formatKm(s.distance_km)} away · {formatMinutes(s.wait_minutes)} wait</p>
-                    <p>{s.free_slots}/{s.total_slots} slots · {s.rate_kw} kW</p>
-                  </div>
-                ),
-              })),
-            ]}
-          />
-        </Card>
-      )}
+      {/* Map + Results — side by side so the list doesn't get pushed below the fold */}
+      {userCoords ? (
+        <div className="grid gap-4 lg:grid-cols-[1fr_380px]">
+          <Card className="p-0 overflow-hidden h-[280px] lg:h-[560px]">
+            <MapView
+              height="100%"
+              markers={[
+                { position: userCoords, kind: "user", popup: "Your location" },
+                ...stationList.map((s): MapMarker => ({
+                  position: [s.latitude, s.longitude],
+                  kind: s.free_slots > 0 ? "stationAvailable" : "stationBusy",
+                  popup: (
+                    <div className="text-xs">
+                      <p className="font-semibold">{s.station_name}</p>
+                      <p>{formatKm(s.distance_km)} away · {formatMinutes(s.wait_minutes)} wait</p>
+                      <p>{s.free_slots}/{s.total_slots} slots · {s.rate_kw} kW</p>
+                    </div>
+                  ),
+                })),
+              ]}
+            />
+          </Card>
 
-      {/* Results */}
-      {stationList.length > 0 ? (
-        <div>
-          <p className="text-xs text-[var(--muted)] mb-3">{stationList.length} stations found</p>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {stationList.map((s, i) => (
-              <StationCard key={`${s.station_name}-${i}`} station={s} rank={i + 1} />
-            ))}
-          </div>
+          {stationList.length > 0 ? (
+            <div className="lg:h-[560px] lg:overflow-y-auto lg:pr-1 space-y-3">
+              <p className="text-xs text-[var(--muted)]">{stationList.length} stations found</p>
+              {stationList.map((s, i) => (
+                <StationCard key={`${s.station_name}-${i}`} station={s} rank={i + 1} />
+              ))}
+            </div>
+          ) : searched ? (
+            <Card className="flex flex-col items-center justify-center text-center lg:h-[560px]">
+              <Bolt className="h-8 w-8 text-[var(--muted)] mb-2" />
+              <p className="text-sm text-[var(--muted)]">No stations found. Try adjusting filters.</p>
+            </Card>
+          ) : (
+            <Card className="flex flex-col items-center justify-center text-center lg:h-[560px]">
+              <Search className="h-8 w-8 text-[var(--muted)] mb-2" />
+              <p className="text-sm text-[var(--muted)]">Searching nearby...</p>
+            </Card>
+          )}
         </div>
       ) : searched ? (
         <Card className="flex flex-col items-center justify-center py-12 text-center">

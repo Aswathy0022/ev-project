@@ -19,13 +19,13 @@ export function Slider({ label, value, min, max, step = 1, unit = "", hint, onCh
   return (
     <div className={cn("flex flex-col gap-2", className)}>
       <div className="flex items-center justify-between">
-        <label htmlFor={sliderId} className="text-xs font-medium text-muted flex items-center gap-1">
+        <label htmlFor={sliderId} className="text-sm font-medium text-muted flex items-center gap-1.5">
           {label}
           {hint && (
-            <span title={hint} className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full border border-white/20 text-[9px] text-muted cursor-help leading-none select-none">?</span>
+            <span title={hint} className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-white/20 text-xs text-muted cursor-help leading-none select-none">?</span>
           )}
         </label>
-        <span className="text-sm font-semibold text-foreground font-mono">
+        <span className="text-base font-semibold text-foreground font-mono">
           {value}{unit}
         </span>
       </div>
@@ -38,7 +38,7 @@ export function Slider({ label, value, min, max, step = 1, unit = "", hint, onCh
           step={step}
           value={value}
           onChange={(e) => onChange(Number(e.target.value))}
-          className="w-full h-1.5 rounded-full appearance-none cursor-pointer"
+          className="w-full h-2.5 rounded-full appearance-none cursor-pointer"
           style={{
             background: `linear-gradient(to right, #00d4ff ${pct}%, rgba(255,255,255,0.12) ${pct}%)`,
           }}

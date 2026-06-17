@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Zap, Route, Battery, BatteryCharging, AlertTriangle, TrendingDown } from "lucide-react";
+import { Zap, Route, Battery, BatteryCharging, AlertTriangle, TrendingDown, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { predict, vehicles, type RangeResult, type Vehicle } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
@@ -73,6 +73,7 @@ export default function DashboardPage() {
   const [chargeTime100, setChargeTime100] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<"battery" | "conditions" | "preferences">("battery");
+  const [formCollapsed, setFormCollapsed] = useState(false);
 
   useEffect(() => {
     vehicles.list().then((v) => {
@@ -117,6 +118,7 @@ export default function DashboardPage() {
       setReadiness(rd);
       setChargeTime80(ct80.charge_minutes);
       setChargeTime100(ct100.charge_minutes);
+      setFormCollapsed(true);
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : "Prediction failed — is the backend running?");
     } finally {
@@ -143,10 +145,21 @@ export default function DashboardPage() {
         <p className="text-sm text-[var(--muted)] mt-1">Get your real-world range prediction</p>
       </div>
 
-      {/* H: results col order-1 on mobile (shows first), form order-2 */}
-      <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
-        {/* Input Panel — order-2 on mobile */}
-        <Card className="order-2 lg:order-1">
+      <div className="grid gap-6">
+        {/* Input Panel — collapses to a summary once a result exists, so the result gets the room */}
+        {formCollapsed && result ? (
+          <Card className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-2 text-sm">
+              <span className="font-medium">{selectedVehicle?.name}</span>
+              <span className="text-[var(--muted)]">· {battery}% battery · {health}% health · {weather}, {terrain}</span>
+            </div>
+            <Button variant="secondary" size="sm" onClick={() => setFormCollapsed(false)}>
+              <Pencil className="h-3.5 w-3.5" />
+              Edit
+            </Button>
+          </Card>
+        ) : (
+        <Card>
           {/* Vehicle selector */}
           <div className="mb-5">
             <Select
@@ -218,75 +231,79 @@ export default function DashboardPage() {
             Predict range
           </Button>
         </Card>
+        )}
 
-        {/* Results column — order-1 on mobile (shows first) */}
-        <div className="space-y-4 order-1 lg:order-2">
+        {/* Results — always below input */}
+        <div className="space-y-4">
           {readiness && <DecisionBanner decision={readiness.decision} detail={readiness.detail} />}
-
-          <Card className="flex flex-col items-center py-6">
-            <ProgressRing value={battery} label="Battery" size={130} />
-            <p className="mt-2 text-xs text-[var(--muted)]">
-              {selectedVehicle?.name ?? "Select vehicle"}
-            </p>
-          </Card>
 
           {result ? (
             <>
-              {/* I: confidence interval */}
-              <MetricCard
-                label="Predicted Range"
-                value={formatKm(result.predicted_range_km)}
-                icon={Route}
-                color="accent"
-                subtext={`Range: ${result.range_min_km.toFixed(0)}–${result.range_max_km.toFixed(0)} km · Full charge: ${formatKm(result.full_charge_range_km)}`}
-              />
-              <MetricCard
-                label="Performance Score"
-                value={result.performance_score}
-                unit="/100"
-                icon={Zap}
-                color={result.performance_score >= 80 ? "success" : result.performance_score >= 60 ? "warning" : "danger"}
-              />
+              <div className="grid gap-4 sm:grid-cols-3">
+                <Card className="flex flex-col items-center py-6">
+                  <ProgressRing value={battery} label="Battery" size={110} />
+                  <p className="mt-2 text-xs text-[var(--muted)]">
+                    {selectedVehicle?.name ?? "Select vehicle"}
+                  </p>
+                </Card>
+                {/* I: confidence interval */}
+                <MetricCard
+                  label="Predicted Range"
+                  value={formatKm(result.predicted_range_km)}
+                  icon={Route}
+                  color="accent"
+                  subtext={`Range: ${result.range_min_km.toFixed(0)}–${result.range_max_km.toFixed(0)} km · Full charge: ${formatKm(result.full_charge_range_km)}`}
+                />
+                <MetricCard
+                  label="Performance Score"
+                  value={result.performance_score}
+                  unit="/100"
+                  icon={Zap}
+                  color={result.performance_score >= 80 ? "success" : result.performance_score >= 60 ? "warning" : "danger"}
+                />
+              </div>
 
-              {/* J: factor explainability */}
-              {significantFactors.length > 0 && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Range Factors</CardTitle>
-                    <TrendingDown className="h-4 w-4 text-[var(--muted)]" />
-                  </CardHeader>
-                  <div className="space-y-2">
-                    {significantFactors.map(([key, val]) => (
-                      <div key={key} className="flex items-center justify-between">
-                        <span className="text-xs text-[var(--muted)]">{FACTOR_LABELS[key] ?? key}</span>
-                        <span className={`text-xs font-mono font-semibold ${val < 0 ? "text-red-400" : val > 0 ? "text-green-400" : "text-[var(--muted)]"}`}>
-                          {val > 0 ? "+" : ""}{val}%
-                        </span>
+              <div className="grid gap-4 sm:grid-cols-2">
+                {/* J: factor explainability */}
+                {significantFactors.length > 0 && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Range Factors</CardTitle>
+                      <TrendingDown className="h-4 w-4 text-[var(--muted)]" />
+                    </CardHeader>
+                    <div className="space-y-2">
+                      {significantFactors.map(([key, val]) => (
+                        <div key={key} className="flex items-center justify-between">
+                          <span className="text-xs text-[var(--muted)]">{FACTOR_LABELS[key] ?? key}</span>
+                          <span className={`text-xs font-mono font-semibold ${val < 0 ? "text-red-400" : val > 0 ? "text-green-400" : "text-[var(--muted)]"}`}>
+                            {val > 0 ? "+" : ""}{val}%
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </Card>
+                )}
+
+                {chargeTime80 !== null && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Charge Time</CardTitle>
+                      <BatteryCharging className="h-4 w-4 text-[var(--muted)]" />
+                    </CardHeader>
+                    <div className="flex gap-4">
+                      <div>
+                        <p className="text-lg font-bold font-mono text-yellow-400">{formatMinutes(chargeTime80)}</p>
+                        <p className="text-xs text-[var(--muted)]">to 80%</p>
                       </div>
-                    ))}
-                  </div>
-                </Card>
-              )}
-
-              {chargeTime80 !== null && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Charge Time</CardTitle>
-                    <BatteryCharging className="h-4 w-4 text-[var(--muted)]" />
-                  </CardHeader>
-                  <div className="flex gap-4">
-                    <div>
-                      <p className="text-lg font-bold font-mono text-yellow-400">{formatMinutes(chargeTime80)}</p>
-                      <p className="text-xs text-[var(--muted)]">to 80%</p>
+                      <div className="w-px bg-white/10" />
+                      <div>
+                        <p className="text-lg font-bold font-mono text-green-400">{formatMinutes(chargeTime100!)}</p>
+                        <p className="text-xs text-[var(--muted)]">to 100%</p>
+                      </div>
                     </div>
-                    <div className="w-px bg-white/10" />
-                    <div>
-                      <p className="text-lg font-bold font-mono text-green-400">{formatMinutes(chargeTime100!)}</p>
-                      <p className="text-xs text-[var(--muted)]">to 100%</p>
-                    </div>
-                  </div>
-                </Card>
-              )}
+                  </Card>
+                )}
+              </div>
 
               {/* K: signup nudge for guests */}
               {!authLoading && !user && (

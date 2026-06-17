@@ -50,7 +50,7 @@ interface MapViewProps {
   markers: MapMarker[];
   polyline?: [number, number][];
   className?: string;
-  height?: number;
+  height?: number | string;
 }
 
 export function MapView({ markers, polyline, className, height = 320 }: MapViewProps) {

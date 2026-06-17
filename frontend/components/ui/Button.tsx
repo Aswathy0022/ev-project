@@ -38,6 +38,7 @@ export function Button({
       className={cn(
         "inline-flex items-center justify-center gap-2 transition-all duration-200 active:scale-[0.98]",
         "disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0a0f14]",
         variantStyles[variant],
         sizeStyles[size],
         className
