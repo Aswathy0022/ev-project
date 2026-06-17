@@ -31,13 +31,19 @@ export const auth = {
 
 export interface RangeRequest {
   battery_level: number; temperature: number; weather: string; battery_health: number;
-  speed_kmph?: number; vehicle_base_range_km?: number; ride_mode?: string;
-  terrain?: string; traffic?: string; rider_weight_kg?: number;
+  speed_kmph?: number; vehicle_base_range_km?: number; vehicle_name?: string;
+  ride_mode?: string; terrain?: string; traffic?: string; rider_weight_kg?: number;
   passenger_count?: number; luggage_kg?: number;
+}
+export interface FactorBreakdown {
+  weather: number; temperature: number; battery_health: number;
+  ride_mode: number; terrain: number; traffic: number; load: number;
 }
 export interface RangeResult {
   predicted_range_km: number; full_charge_range_km: number;
+  range_min_km: number; range_max_km: number;
   performance_score: number; efficiency_factor: number;
+  factors: FactorBreakdown;
 }
 
 export interface ChargeTimeRequest {
@@ -80,7 +86,10 @@ export const stations = {
 export interface TripResult {
   trip_distance_km: number; needed_range_km: number; remaining_range_km: number;
   decision: string; detail: string;
-  backup_station?: { name: string; distance_km: number; wait_minutes: number; rate_kw: number; free_slots: number };
+  backup_station?: {
+    name: string; distance_km: number; wait_minutes: number; rate_kw: number; free_slots: number;
+    latitude: number; longitude: number;
+  };
 }
 
 export const trips = {
@@ -119,6 +128,19 @@ export interface GeocodeResult { lat: number | null; lon: number | null; label: 
 export const geocode = {
   search: (place: string) => apiFetch<GeocodeResult>(`/geocode?place=${encodeURIComponent(place)}`),
   cities: () => apiFetch<string[]>("/geocode/cities"),
+};
+
+// ── Prediction History ────────────────────────────────────────────────────────
+
+export interface PredictionEntry {
+  id: number; predicted_at: string; vehicle_name: string;
+  battery_level: number; battery_health: number; weather: string;
+  terrain: string; traffic: string; ride_mode: string;
+  predicted_range_km: number; performance_score: number;
+}
+
+export const predictions = {
+  list: (limit = 20) => apiFetch<PredictionEntry[]>(`/predict/history?limit=${limit}`),
 };
 
 // ── Admin ─────────────────────────────────────────────────────────────────────

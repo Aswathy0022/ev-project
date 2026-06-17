@@ -30,6 +30,8 @@ def evaluate_trip(body: TripEvaluateRequest, db: Session = Depends(get_db)):
             "wait_minutes": round(closest.wait_minutes, 1),
             "rate_kw": round(closest.rate_kw, 1),
             "free_slots": closest.free_slots,
+            "latitude": closest.latitude,
+            "longitude": closest.longitude,
         }
 
     return TripResult(

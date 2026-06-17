@@ -103,8 +103,19 @@ def predict_range(
     return {
         "predicted_range_km": round(predicted_range, 1),
         "full_charge_range_km": round(full_range * efficiency_factor, 1),
+        "range_min_km": round(predicted_range * 0.92, 1),
+        "range_max_km": round(predicted_range * 1.08, 1),
         "performance_score": performance_score,
         "efficiency_factor": round(efficiency_factor, 3),
+        "factors": {
+            "weather": round((weather_factor - 1.0) * 100, 1),
+            "temperature": round((temp_factor - 1.0) * 100, 1),
+            "battery_health": round((health_factor - 1.0) * 100, 1),
+            "ride_mode": round((ride_factor - 1.0) * 100, 1),
+            "terrain": round((terrain_factor - 1.0) * 100, 1),
+            "traffic": round((traffic_factor - 1.0) * 100, 1),
+            "load": round((load_factor - 1.0) * 100, 1),
+        },
     }
 
 

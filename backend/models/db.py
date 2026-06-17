@@ -20,6 +20,7 @@ class User(Base):
     password_hash: Mapped[str] = mapped_column(String, nullable=False)
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, server_default="0")
     history: Mapped[list["ChargingSession"]] = relationship("ChargingSession", back_populates="user")
+    predictions: Mapped[list["PredictionEntry"]] = relationship("PredictionEntry", back_populates="user")
 
 
 class ChargingSession(Base):
@@ -52,6 +53,24 @@ class Station(Base):
     rate_kw: Mapped[float] = mapped_column(Float, default=30.0)
     load_kw: Mapped[float] = mapped_column(Float, default=15.0)
     status: Mapped[str] = mapped_column(String, default="Available")
+
+
+class PredictionEntry(Base):
+    __tablename__ = "prediction_history"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), index=True)
+    predicted_at: Mapped[str] = mapped_column(String, nullable=False)
+    vehicle_name: Mapped[str] = mapped_column(String, nullable=False)
+    battery_level: Mapped[float] = mapped_column(Float)
+    battery_health: Mapped[float] = mapped_column(Float)
+    weather: Mapped[str] = mapped_column(String)
+    terrain: Mapped[str] = mapped_column(String)
+    traffic: Mapped[str] = mapped_column(String)
+    ride_mode: Mapped[str] = mapped_column(String)
+    predicted_range_km: Mapped[float] = mapped_column(Float)
+    performance_score: Mapped[float] = mapped_column(Float)
+    user: Mapped["User"] = relationship("User", back_populates="predictions")
 
 
 class City(Base):

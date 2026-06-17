@@ -7,19 +7,23 @@ interface SliderProps {
   max: number;
   step?: number;
   unit?: string;
+  hint?: string;
   onChange: (v: number) => void;
   className?: string;
 }
 
-export function Slider({ label, value, min, max, step = 1, unit = "", onChange, className }: SliderProps) {
+export function Slider({ label, value, min, max, step = 1, unit = "", hint, onChange, className }: SliderProps) {
   const pct = ((value - min) / (max - min)) * 100;
   const sliderId = label.toLowerCase().replace(/\s+/g, "-") + "-slider";
 
   return (
     <div className={cn("flex flex-col gap-2", className)}>
       <div className="flex items-center justify-between">
-        <label htmlFor={sliderId} className="text-xs font-medium text-muted">
+        <label htmlFor={sliderId} className="text-xs font-medium text-muted flex items-center gap-1">
           {label}
+          {hint && (
+            <span title={hint} className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full border border-white/20 text-[9px] text-muted cursor-help leading-none select-none">?</span>
+          )}
         </label>
         <span className="text-sm font-semibold text-foreground font-mono">
           {value}{unit}

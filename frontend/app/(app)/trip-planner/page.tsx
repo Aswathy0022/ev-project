@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import dynamic from "next/dynamic";
 import { Map, Navigation, ArrowRight, MapPin, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { predict, trips, geocode, vehicles, type TripResult, type Vehicle } from "@/lib/api";
@@ -12,8 +13,10 @@ import { Select } from "@/components/ui/Select";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Badge } from "@/components/ui/Badge";
+import type { MapMarker } from "@/components/ui/MapView";
 import { formatKm, formatMinutes } from "@/lib/utils";
-import { useEffect } from "react";
+
+const MapView = dynamic(() => import("@/components/ui/MapView").then((m) => m.MapView), { ssr: false });
 
 const WEATHER_OPTIONS = [
   { value: "Clear", label: "☀️ Clear" },
@@ -33,12 +36,20 @@ const TRAFFIC_OPTIONS = [
   { value: "Heavy traffic", label: "🔴 Heavy" },
 ];
 
+// E: read shared state from localStorage (same keys as dashboard)
+function getSaved(key: string, fallback: number): number {
+  if (typeof window === "undefined") return fallback;
+  const v = localStorage.getItem(key);
+  return v !== null ? Number(v) : fallback;
+}
+
 export default function TripPlannerPage() {
   const [vehicleList, setVehicleList] = useState<Vehicle[]>([]);
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
   const [cities, setCities] = useState<string[]>([]);
   const [origin, setOrigin] = useState("");
   const [destination, setDestination] = useState("");
+  // E: initialize from shared localStorage keys set by dashboard
   const [battery, setBattery] = useState(70);
   const [health, setHealth] = useState(90);
   const [temperature, setTemperature] = useState(28);
@@ -48,13 +59,25 @@ export default function TripPlannerPage() {
   const [safetyBuffer, setSafetyBuffer] = useState(15);
   const [result, setResult] = useState<TripResult | null>(null);
   const [loading, setLoading] = useState(false);
+  const [routeCoords, setRouteCoords] = useState<{ origin: [number, number]; destination: [number, number] } | null>(null);
 
   useEffect(() => {
     vehicles.list().then((v) => {
       setVehicleList(v);
-      if (v.length > 0) setSelectedVehicle(v[0]);
+      if (v.length > 0) {
+        // E: also restore vehicle selection
+        const savedName = localStorage.getItem("voltiq-vehicle");
+        const saved = savedName ? v.find((x) => x.name === savedName) : null;
+        setSelectedVehicle(saved ?? v[0]);
+      }
     }).catch(() => {});
     geocode.cities().then(setCities).catch(() => {});
+  }, []);
+
+  // Sync from localStorage after mount — avoids SSR/client hydration mismatch
+  useEffect(() => {
+    setBattery(getSaved("voltiq-battery", 70));
+    setHealth(getSaved("voltiq-health", 90));
   }, []);
 
   const handlePlan = async () => {
@@ -72,9 +95,12 @@ export default function TripPlannerPage() {
         toast.error(`Could not find: ${!originGeo.lat ? origin : destination}`);
         return;
       }
+      setRouteCoords({ origin: [originGeo.lat, originGeo.lon!], destination: [destGeo.lat, destGeo.lon!] });
       const rangeRes = await predict.range({
         battery_level: battery, temperature, weather, battery_health: health,
-        vehicle_base_range_km: selectedVehicle.base_range_km, terrain, traffic,
+        vehicle_base_range_km: selectedVehicle.base_range_km,
+        vehicle_name: selectedVehicle.name,
+        terrain, traffic,
       });
       const tripRes = await trips.evaluate({
         current_lat: originGeo.lat!, current_lon: originGeo.lon!,
@@ -100,10 +126,8 @@ export default function TripPlannerPage() {
       <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
         {/* Form */}
         <Card className="space-y-5">
-          {/* Route inputs */}
           <div className="space-y-3">
             <h3 className="text-xs font-semibold text-[var(--muted)] uppercase tracking-wider">Route</h3>
-            {/* datalist for city autocomplete */}
             <datalist id="trip-cities">
               {cities.map((c) => <option key={c} value={c} />)}
             </datalist>
@@ -134,7 +158,6 @@ export default function TripPlannerPage() {
 
           <div className="h-px bg-white/8" />
 
-          {/* Vehicle & Battery */}
           <div className="space-y-4">
             <h3 className="text-xs font-semibold text-[var(--muted)] uppercase tracking-wider">Vehicle</h3>
             <Select
@@ -145,13 +168,20 @@ export default function TripPlannerPage() {
             />
             <div className="grid grid-cols-2 gap-3">
               <Slider label="Battery" value={battery} min={0} max={100} unit="%" onChange={setBattery} />
-              <Slider label="Health" value={health} min={60} max={100} unit="%" onChange={setHealth} />
+              <Slider
+                label="Health"
+                value={health}
+                min={60}
+                max={100}
+                unit="%"
+                onChange={setHealth}
+                hint="Battery health degrades over time. Find in your vehicle app or estimate based on age."
+              />
             </div>
           </div>
 
           <div className="h-px bg-white/8" />
 
-          {/* Conditions */}
           <div className="space-y-4">
             <h3 className="text-xs font-semibold text-[var(--muted)] uppercase tracking-wider">Conditions</h3>
             <div className="grid grid-cols-2 gap-3">
@@ -160,7 +190,15 @@ export default function TripPlannerPage() {
               <Select label="Traffic" value={traffic} onChange={(e) => setTraffic(e.target.value)} options={TRAFFIC_OPTIONS} />
               <Slider label="Temp" value={temperature} min={-10} max={50} unit="°C" onChange={setTemperature} />
             </div>
-            <Slider label="Safety buffer" value={safetyBuffer} min={5} max={30} unit="%" onChange={setSafetyBuffer} />
+            <Slider
+              label="Safety buffer"
+              value={safetyBuffer}
+              min={5}
+              max={30}
+              unit="%"
+              onChange={setSafetyBuffer}
+              hint="Extra range margin added on top of trip distance. 15% = if trip is 50 km, you need 57.5 km range. Higher = safer."
+            />
           </div>
 
           <Button onClick={handlePlan} loading={loading} size="lg" className="w-full">
@@ -169,10 +207,38 @@ export default function TripPlannerPage() {
           </Button>
         </Card>
 
-        {/* Results */}
+        {/* Results — A: DecisionBanner at top */}
         <div className="space-y-4">
           {result ? (
             <>
+              {/* A: banner first */}
+              <DecisionBanner decision={result.decision} detail={result.detail} />
+
+              {routeCoords && (
+                <Card className="p-0 overflow-hidden">
+                  <MapView
+                    height={280}
+                    polyline={[routeCoords.origin, routeCoords.destination]}
+                    markers={[
+                      { position: routeCoords.origin, kind: "origin", popup: "From" },
+                      { position: routeCoords.destination, kind: "destination", popup: "To" },
+                      ...(result.backup_station
+                        ? [{
+                            position: [result.backup_station.latitude, result.backup_station.longitude] as [number, number],
+                            kind: "stationAvailable" as const,
+                            popup: (
+                              <div className="text-xs">
+                                <p className="font-semibold">{result.backup_station.name}</p>
+                                <p>{formatKm(result.backup_station.distance_km)} away · {formatMinutes(result.backup_station.wait_minutes)} wait</p>
+                              </div>
+                            ),
+                          }] as MapMarker[]
+                        : []),
+                    ]}
+                  />
+                </Card>
+              )}
+
               <MetricCard label="Trip Distance" value={formatKm(result.trip_distance_km)} icon={Map} color="accent" />
               <MetricCard
                 label="Range Needed"
@@ -205,10 +271,6 @@ export default function TripPlannerPage() {
           )}
         </div>
       </div>
-
-      {result && (
-        <DecisionBanner decision={result.decision} detail={result.detail} />
-      )}
     </div>
   );
 }

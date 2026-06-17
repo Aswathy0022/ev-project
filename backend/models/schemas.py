@@ -39,6 +39,7 @@ class RangeRequest(BaseModel):
     battery_health: float
     speed_kmph: float | None = None
     vehicle_base_range_km: float | None = None
+    vehicle_name: str | None = None
     ride_mode: str | None = "Normal"
     terrain: str | None = "City roads"
     traffic: str | None = "Moderate traffic"
@@ -47,11 +48,24 @@ class RangeRequest(BaseModel):
     luggage_kg: float = 0.0
 
 
+class FactorBreakdown(BaseModel):
+    weather: float
+    temperature: float
+    battery_health: float
+    ride_mode: float
+    terrain: float
+    traffic: float
+    load: float
+
+
 class RangeResponse(BaseModel):
     predicted_range_km: float
     full_charge_range_km: float
+    range_min_km: float
+    range_max_km: float
     performance_score: float
     efficiency_factor: float
+    factors: FactorBreakdown
 
 
 class ChargeTimeRequest(BaseModel):
@@ -145,6 +159,8 @@ class BackupStation(BaseModel):
     wait_minutes: float
     rate_kw: float
     free_slots: int
+    latitude: float
+    longitude: float
 
 
 class TripResult(BaseModel):
@@ -186,6 +202,22 @@ class HistorySummary(BaseModel):
     energy_kwh: float
     avg_wait: float
     favorite_station: str
+
+
+# ── Prediction History ────────────────────────────────────────────────────────
+
+class PredictionEntryOut(BaseModel):
+    id: int
+    predicted_at: str
+    vehicle_name: str
+    battery_level: float
+    battery_health: float
+    weather: str
+    terrain: str
+    traffic: str
+    ride_mode: str
+    predicted_range_km: float
+    performance_score: float
 
 
 # ── Vehicles ──────────────────────────────────────────────────────────────────
