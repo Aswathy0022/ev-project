@@ -22,7 +22,7 @@ export function Slider({ label, value, min, max, step = 1, unit = "", hint, onCh
         <label htmlFor={sliderId} className="text-sm font-medium text-muted flex items-center gap-1.5">
           {label}
           {hint && (
-            <span title={hint} className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-white/20 text-xs text-muted cursor-help leading-none select-none">?</span>
+            <span title={hint} className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-black/15 text-xs text-muted cursor-help leading-none select-none">?</span>
           )}
         </label>
         <span className="text-base font-semibold text-foreground font-mono">
@@ -40,7 +40,7 @@ export function Slider({ label, value, min, max, step = 1, unit = "", hint, onCh
           onChange={(e) => onChange(Number(e.target.value))}
           className="w-full h-2.5 rounded-full appearance-none cursor-pointer"
           style={{
-            background: `linear-gradient(to right, #00d4ff ${pct}%, rgba(255,255,255,0.12) ${pct}%)`,
+            background: `linear-gradient(to right, #16a34a ${pct}%, rgba(16,35,26,0.12) ${pct}%)`,
           }}
         />
       </div>

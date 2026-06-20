@@ -4,7 +4,7 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 echo "[VoltIQ] Freeing ports 8000 and 3000..."
-lsof -ti :8000 :3000 | xargs kill -9 2>/dev/null || true
+lsof -ti :8000 -ti :3000 | xargs kill -9 2>/dev/null || true
 
 echo "[VoltIQ] Starting backend..."
 cd "$SCRIPT_DIR/backend"

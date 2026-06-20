@@ -54,18 +54,6 @@ def list_cities(db: Session = Depends(get_db), _=Depends(get_admin_user)):
     return db.query(City).order_by(City.name).all()
 
 
-@router.post("/cities", response_model=CityOut, status_code=201)
-def create_city(body: CityIn, db: Session = Depends(get_db), _=Depends(get_admin_user)):
-    existing = db.query(City).filter(City.name == body.name.strip().lower()).first()
-    if existing:
-        raise HTTPException(status_code=409, detail="City name already exists")
-    city = City(name=body.name.strip().lower(), display_name=body.display_name, lat=body.lat, lon=body.lon)
-    db.add(city)
-    db.commit()
-    db.refresh(city)
-    return city
-
-
 @router.put("/cities/{city_id}", response_model=CityOut)
 def update_city(city_id: int, body: CityIn, db: Session = Depends(get_db), _=Depends(get_admin_user)):
     city = db.query(City).filter(City.id == city_id).first()

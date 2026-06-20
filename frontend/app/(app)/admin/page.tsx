@@ -18,8 +18,6 @@ const EMPTY_STATION: StationIn = {
   free_slots: 2, total_slots: 4, wait_minutes: 10, rate_kw: 30, load_kw: 15, status: "Available",
 };
 
-const EMPTY_CITY: CityIn = { name: "", display_name: "", lat: 0, lon: 0 };
-
 function CityForm({
   initial, onSave, onCancel, loading,
 }: {
@@ -38,10 +36,8 @@ function CityForm({
   };
 
   return (
-    <div className="glass rounded-2xl p-5 space-y-4 border border-cyan-500/20">
-      <h3 className="text-sm font-semibold text-cyan-400">
-        {initial.name ? "Edit City" : "Add New City"}
-      </h3>
+    <div className="glass rounded-2xl p-5 space-y-4 border border-green-500/20">
+      <h3 className="text-sm font-semibold text-green-600">Edit City</h3>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <Input label="Lookup key (lowercase)" value={form.name} onChange={set("name")} placeholder="bengaluru" />
         <Input label="Display name" value={form.display_name} onChange={set("display_name")} placeholder="Bengaluru, Karnataka, India" />
@@ -88,8 +84,8 @@ function StationForm({
   };
 
   return (
-    <div className="glass rounded-2xl p-5 space-y-4 border border-cyan-500/20">
-      <h3 className="text-sm font-semibold text-cyan-400">
+    <div className="glass rounded-2xl p-5 space-y-4 border border-green-500/20">
+      <h3 className="text-sm font-semibold text-green-600">
         {initial.station_name ? "Edit Station" : "Add New Station"}
       </h3>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -145,7 +141,6 @@ export default function AdminPage() {
   // Cities state
   const [cities, setCities] = useState<CityAdmin[]>([]);
   const [citiesLoading, setCitiesLoading] = useState(true);
-  const [showAddCity, setShowAddCity] = useState(false);
   const [editCityId, setEditCityId] = useState<number | null>(null);
   const [savingCity, setSavingCity] = useState(false);
 
@@ -193,20 +188,6 @@ export default function AdminPage() {
       toast.error(e instanceof Error ? e.message : "Failed to add station");
     } finally {
       setSaving(false);
-    }
-  };
-
-  const handleAddCity = async (data: CityIn) => {
-    setSavingCity(true);
-    try {
-      const created = await adminApi.createCity(data);
-      setCities((prev) => [...prev, created]);
-      setShowAddCity(false);
-      toast.success(`City "${created.display_name}" added`);
-    } catch (e: unknown) {
-      toast.error(e instanceof Error ? e.message : "Failed to add city");
-    } finally {
-      setSavingCity(false);
     }
   };
 
@@ -323,8 +304,8 @@ export default function AdminPage() {
                 />
               ) : (
                 <Card key={s.id} className="flex items-center gap-4">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-cyan-500/10 shrink-0">
-                    <Zap className="h-4 w-4 text-cyan-400" />
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-green-500/10 shrink-0">
+                    <Zap className="h-4 w-4 text-green-600" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
@@ -375,23 +356,9 @@ export default function AdminPage() {
       {/* ── Cities tab ── */}
       {tab === "cities" && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <p className="text-xs text-[var(--muted)]">
-              Cities used for geocoding lookup in charger finder and trip planner.
-            </p>
-            <Button onClick={() => { setShowAddCity(true); setEditCityId(null); }} size="sm">
-              <Plus className="h-4 w-4" /> Add city
-            </Button>
-          </div>
-
-          {showAddCity && (
-            <CityForm
-              initial={EMPTY_CITY}
-              onSave={handleAddCity}
-              onCancel={() => setShowAddCity(false)}
-              loading={savingCity}
-            />
-          )}
+          <p className="text-xs text-[var(--muted)]">
+            Cities used as an offline fallback cache for geocoding in charger finder and trip planner.
+          </p>
 
           <div className="space-y-3">
             {cities.map((c) =>
@@ -405,8 +372,8 @@ export default function AdminPage() {
                 />
               ) : (
                 <Card key={c.id} className="flex items-center gap-4">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-cyan-500/10 shrink-0">
-                    <MapPin className="h-4 w-4 text-cyan-400" />
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-green-500/10 shrink-0">
+                    <MapPin className="h-4 w-4 text-green-600" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-sm truncate">{c.display_name}</p>
@@ -422,7 +389,7 @@ export default function AdminPage() {
                     </div>
                   ) : (
                     <div className="flex gap-2 shrink-0">
-                      <Button variant="secondary" size="sm" onClick={() => { setEditCityId(c.id); setShowAddCity(false); setPendingDelete(null); }}>
+                      <Button variant="secondary" size="sm" onClick={() => { setEditCityId(c.id); setPendingDelete(null); }}>
                         <Pencil className="h-3.5 w-3.5" />
                       </Button>
                       <Button variant="danger" size="sm" onClick={() => setPendingDelete({ type: "city", id: c.id })}>
@@ -433,10 +400,10 @@ export default function AdminPage() {
                 </Card>
               )
             )}
-            {cities.length === 0 && !showAddCity && (
+            {cities.length === 0 && (
               <Card className="flex flex-col items-center justify-center py-12 text-center">
                 <MapPin className="h-8 w-8 text-[var(--muted)] mb-2" />
-                <p className="text-sm text-[var(--muted)]">No cities yet. Add one above.</p>
+                <p className="text-sm text-[var(--muted)]">No cities yet.</p>
               </Card>
             )}
           </div>

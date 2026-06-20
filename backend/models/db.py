@@ -21,6 +21,7 @@ class User(Base):
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, server_default="0")
     history: Mapped[list["ChargingSession"]] = relationship("ChargingSession", back_populates="user")
     predictions: Mapped[list["PredictionEntry"]] = relationship("PredictionEntry", back_populates="user")
+    bookings: Mapped[list["Booking"]] = relationship("Booking", back_populates="user")
 
 
 class ChargingSession(Base):
@@ -53,6 +54,7 @@ class Station(Base):
     rate_kw: Mapped[float] = mapped_column(Float, default=30.0)
     load_kw: Mapped[float] = mapped_column(Float, default=15.0)
     status: Mapped[str] = mapped_column(String, default="Available")
+    country: Mapped[str | None] = mapped_column(String, nullable=True)
 
 
 class PredictionEntry(Base):
@@ -81,6 +83,21 @@ class City(Base):
     display_name: Mapped[str] = mapped_column(String, nullable=False)
     lat: Mapped[float] = mapped_column(Float, nullable=False)
     lon: Mapped[float] = mapped_column(Float, nullable=False)
+    country: Mapped[str | None] = mapped_column(String, nullable=True)
+
+
+class Booking(Base):
+    __tablename__ = "bookings"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), index=True)
+    station_id: Mapped[int] = mapped_column(Integer, ForeignKey("stations.id"), index=True)
+    slot_start: Mapped[str] = mapped_column(String, nullable=False)
+    slot_end: Mapped[str] = mapped_column(String, nullable=False)
+    status: Mapped[str] = mapped_column(String, default="confirmed", nullable=False)
+    created_at: Mapped[str] = mapped_column(String, nullable=False)
+    user: Mapped["User"] = relationship("User", back_populates="bookings")
+    station: Mapped["Station"] = relationship("Station")
 
 
 def init_db() -> None:
@@ -91,6 +108,15 @@ def init_db() -> None:
         cols = [row[1] for row in conn.execute(__import__("sqlalchemy").text("PRAGMA table_info(users)")).fetchall()]
         if "is_admin" not in cols:
             conn.execute(__import__("sqlalchemy").text("ALTER TABLE users ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0"))
+            conn.commit()
+        for table in ("stations", "cities"):
+            cols = [row[1] for row in conn.execute(__import__("sqlalchemy").text(f"PRAGMA table_info({table})")).fetchall()]
+            if "country" not in cols:
+                conn.execute(__import__("sqlalchemy").text(f"ALTER TABLE {table} ADD COLUMN country TEXT"))
+                conn.commit()
+            # Backfill rows seeded before the country column existed — all current
+            # seed data (SEED_CITY_MAP, station catalog) is India-only.
+            conn.execute(__import__("sqlalchemy").text(f"UPDATE {table} SET country = 'IN' WHERE country IS NULL"))
             conn.commit()
 
 

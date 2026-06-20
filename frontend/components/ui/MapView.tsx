@@ -8,10 +8,10 @@ import "leaflet/dist/leaflet.css";
 export type MarkerKind = "user" | "origin" | "destination" | "stationAvailable" | "stationBusy";
 
 const MARKER_COLORS: Record<MarkerKind, string> = {
-  user: "#00d4ff",
-  origin: "#22c55e",
-  destination: "#ef4444",
-  stationAvailable: "#22c55e",
+  user: "#16a34a",
+  origin: "#16a34a",
+  destination: "#dc2626",
+  stationAvailable: "#16a34a",
   stationBusy: "#64748b",
 };
 
@@ -64,14 +64,14 @@ export function MapView({ markers, polyline, className, height = 320 }: MapViewP
         zoom={12}
         scrollWheelZoom
         className="h-full w-full rounded-xl"
-        style={{ background: "#111827" }}
+        style={{ background: "#f0f4f2" }}
       >
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-          url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+          url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
         />
         {polyline && polyline.length > 1 && (
-          <Polyline positions={polyline} pathOptions={{ color: "#00d4ff", weight: 3, dashArray: "6 6" }} />
+          <Polyline positions={polyline} pathOptions={{ color: "#16a34a", weight: 4 }} />
         )}
         {markers.map((m, i) => (
           <Marker key={i} position={m.position} icon={dotIcon(m.kind)}>

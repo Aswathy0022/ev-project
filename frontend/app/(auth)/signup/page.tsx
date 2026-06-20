@@ -38,8 +38,8 @@ export default function SignupPage() {
     <div className="min-h-screen flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-cyan-500/20 shadow-[0_0_24px_rgba(0,212,255,0.3)] mb-4">
-            <Zap className="h-6 w-6 text-cyan-400" />
+          <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-green-500/15 shadow-[0_0_24px_rgba(22,163,74,0.25)] mb-4">
+            <Zap className="h-6 w-6 text-green-600" />
           </div>
           <h1 className="text-2xl font-bold">Create account</h1>
           <p className="text-sm text-muted mt-1">Start tracking your EV rides</p>
@@ -78,7 +78,7 @@ export default function SignupPage() {
         <div className="mt-4 text-center space-y-2">
           <p className="text-sm text-muted">
             Already have an account?{" "}
-            <Link href="/login" className="text-cyan-400 hover:text-cyan-300 font-medium">
+            <Link href="/login" className="text-green-600 hover:text-green-700 font-medium">
               Sign in
             </Link>
           </p>

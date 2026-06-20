@@ -25,9 +25,9 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             ref={ref}
             id={inputId}
             className={cn(
-              "w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-foreground",
+              "w-full rounded-xl border border-black/10 bg-black/3 px-3 py-2.5 text-sm text-foreground",
               "placeholder:text-muted/60 transition-all duration-200",
-              "focus:border-cyan-500/60 focus:bg-white/8 focus:ring-2 focus:ring-cyan-500/40",
+              "focus:border-green-500/60 focus:bg-white focus:ring-2 focus:ring-green-500/30",
               icon && "pl-9",
               error && "border-red-500/60",
               className

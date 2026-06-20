@@ -6,8 +6,8 @@ const variants: Record<Variant, string> = {
   success: "bg-green-500/15 text-green-400 border-green-500/30",
   warning: "bg-yellow-500/15 text-yellow-400 border-yellow-500/30",
   danger: "bg-red-500/15 text-red-400 border-red-500/30",
-  accent: "bg-cyan-500/15 text-cyan-400 border-cyan-500/30",
-  default: "bg-white/5 text-slate-400 border-white/10",
+  accent: "bg-green-500/15 text-green-700 border-green-500/30",
+  default: "bg-black/5 text-slate-500 border-black/10",
 };
 
 export function Badge({

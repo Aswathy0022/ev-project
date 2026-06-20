@@ -67,7 +67,7 @@ export const predict = {
 // ── Stations ──────────────────────────────────────────────────────────────────
 
 export interface Station {
-  station_name: string; city: string; latitude: number; longitude: number;
+  id: number; station_name: string; city: string; latitude: number; longitude: number;
   distance_km: number; free_slots: number; total_slots: number; wait_minutes: number;
   rate_kw: number; load_kw: number; status: string; score: number;
 }
@@ -83,13 +83,19 @@ export const stations = {
 
 // ── Trips ─────────────────────────────────────────────────────────────────────
 
+export interface ChargingStop {
+  station_id: number; name: string; distance_km: number; wait_minutes: number; rate_kw: number; free_slots: number;
+  latitude: number; longitude: number;
+}
+export interface ElevationPoint { distance_km: number; elevation_m: number }
+
 export interface TripResult {
-  trip_distance_km: number; needed_range_km: number; remaining_range_km: number;
+  trip_distance_km: number; duration_min: number; needed_range_km: number; remaining_range_km: number;
   decision: string; detail: string;
-  backup_station?: {
-    name: string; distance_km: number; wait_minutes: number; rate_kw: number; free_slots: number;
-    latitude: number; longitude: number;
-  };
+  polyline: [number, number][] | null;
+  is_real_route: boolean;
+  elevation_profile: ElevationPoint[] | null;
+  charging_stops: ChargingStop[];
 }
 
 export const trips = {
@@ -115,7 +121,7 @@ export const history = {
 
 // ── Vehicles ──────────────────────────────────────────────────────────────────
 
-export interface Vehicle { name: string; base_range_km: number; fast_charge_bias: number; full_charge_bias: number }
+export interface Vehicle { name: string; base_range_km: number; fast_charge_bias: number; full_charge_bias: number; nominal_voltage_v: number }
 
 export const vehicles = {
   list: () => apiFetch<Vehicle[]>("/vehicles"),
@@ -127,7 +133,36 @@ export interface GeocodeResult { lat: number | null; lon: number | null; label: 
 
 export const geocode = {
   search: (place: string) => apiFetch<GeocodeResult>(`/geocode?place=${encodeURIComponent(place)}`),
-  cities: () => apiFetch<string[]>("/geocode/cities"),
+  cities: (countryCode?: string) =>
+    apiFetch<string[]>(`/geocode/cities${countryCode ? `?country_code=${encodeURIComponent(countryCode)}` : ""}`),
+  suggest: (q: string, countryCode?: string) =>
+    apiFetch<string[]>(
+      `/geocode/suggest?q=${encodeURIComponent(q)}${countryCode ? `&country_code=${encodeURIComponent(countryCode)}` : ""}`
+    ),
+};
+
+// ── Location ──────────────────────────────────────────────────────────────────
+
+export interface RegionResult { country: string | null; country_code: string | null; city: string | null }
+
+export const location = {
+  region: (lat: number, lon: number) => apiFetch<RegionResult>(`/location/region?lat=${lat}&lon=${lon}`),
+};
+
+// ── Weather ───────────────────────────────────────────────────────────────────
+
+export interface WeatherResult {
+  temperature_c: number;
+  condition: string;
+  condition_label: string;
+  location_label: string | null;
+  humidity: number;
+  wind_kmph: number;
+}
+
+export const weather = {
+  current: (lat: number, lon: number) =>
+    apiFetch<WeatherResult>(`/weather?lat=${lat}&lon=${lon}`),
 };
 
 // ── Prediction History ────────────────────────────────────────────────────────
@@ -142,8 +177,6 @@ export interface PredictionEntry {
 export const predictions = {
   list: (limit = 20) => apiFetch<PredictionEntry[]>(`/predict/history?limit=${limit}`),
 };
-
-// ── Admin ─────────────────────────────────────────────────────────────────────
 
 export interface StationAdmin {
   id: number; station_name: string; city: string; latitude: number; longitude: number;
@@ -165,6 +198,22 @@ export interface CityIn {
   name: string; display_name: string; lat: number; lon: number;
 }
 
+// ── Bookings ──────────────────────────────────────────────────────────────────
+
+export interface Booking {
+  id: number; station_id: number; station_name: string;
+  slot_start: string; slot_end: string; status: string; created_at: string;
+}
+
+export const bookings = {
+  list: () => apiFetch<Booking[]>("/bookings"),
+  create: (station_id: number, slot_start: string, slot_end: string) =>
+    apiFetch<Booking>("/bookings", { method: "POST", body: JSON.stringify({ station_id, slot_start, slot_end }) }),
+  cancel: (id: number) => apiFetch<Booking>(`/bookings/${id}/cancel`, { method: "POST" }),
+};
+
+// ── Admin ─────────────────────────────────────────────────────────────────────
+
 export const adminApi = {
   listStations: () => apiFetch<StationAdmin[]>("/admin/stations"),
   createStation: (body: StationIn) =>
@@ -174,8 +223,6 @@ export const adminApi = {
   deleteStation: (id: number) =>
     apiFetch<void>(`/admin/stations/${id}`, { method: "DELETE" }),
   listCities: () => apiFetch<CityAdmin[]>("/admin/cities"),
-  createCity: (body: CityIn) =>
-    apiFetch<CityAdmin>("/admin/cities", { method: "POST", body: JSON.stringify(body) }),
   updateCity: (id: number, body: CityIn) =>
     apiFetch<CityAdmin>(`/admin/cities/${id}`, { method: "PUT", body: JSON.stringify(body) }),
   deleteCity: (id: number) =>

@@ -2,9 +2,11 @@
 
 import { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
-import { Map, Navigation, ArrowRight, MapPin, Zap, Pencil } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Map, Navigation, ArrowRight, MapPin, Zap, Pencil, Clock, Mountain, BatteryCharging, CalendarClock } from "lucide-react";
 import { toast } from "sonner";
-import { predict, trips, geocode, vehicles, type TripResult, type Vehicle } from "@/lib/api";
+import { predict, trips, geocode, vehicles, bookings, weather as weatherApi, type TripResult, type Vehicle, type ChargingStop } from "@/lib/api";
+import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/Card";
 import { MetricCard } from "@/components/ui/MetricCard";
 import { DecisionBanner } from "@/components/ui/DecisionBanner";
@@ -13,10 +15,96 @@ import { Select } from "@/components/ui/Select";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Badge } from "@/components/ui/Badge";
+import { ElevationChart } from "@/components/ui/ElevationChart";
 import type { MapMarker } from "@/components/ui/MapView";
 import { formatKm, formatMinutes } from "@/lib/utils";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 
 const MapView = dynamic(() => import("@/components/ui/MapView").then((m) => m.MapView), { ssr: false });
+
+const STOP_DURATION_OPTIONS = [
+  { value: "30", label: "30 min" },
+  { value: "60", label: "1 hour" },
+  { value: "90", label: "1.5 hours" },
+  { value: "120", label: "2 hours" },
+];
+
+function ChargingStopRow({ stop }: { stop: ChargingStop }) {
+  const { user } = useAuth();
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const [slotStart, setSlotStart] = useState("");
+  const [duration, setDuration] = useState("60");
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleBookClick = () => {
+    if (!user) {
+      toast.error("Sign in to book a charging slot");
+      router.push("/login");
+      return;
+    }
+    setOpen((o) => !o);
+  };
+
+  const handleConfirmBooking = async () => {
+    if (!slotStart) {
+      toast.error("Pick a start time");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const start = new Date(slotStart);
+      const end = new Date(start.getTime() + Number(duration) * 60_000);
+      await bookings.create(stop.station_id, start.toISOString(), end.toISOString());
+      toast.success(`Slot booked at ${stop.name}`);
+      setOpen(false);
+      setSlotStart("");
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Booking failed");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="rounded-xl border border-black/8 p-3 space-y-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <p className="font-medium text-sm">{stop.name}</p>
+          <p className="text-xs text-[var(--muted)]">{formatKm(stop.distance_km)} along route</p>
+        </div>
+        <div className="flex flex-wrap items-center gap-1.5">
+          <Badge variant="default">{formatMinutes(stop.wait_minutes)} wait</Badge>
+          <Badge variant="success">{stop.rate_kw} kW</Badge>
+          <Badge variant={stop.free_slots > 0 ? "success" : "danger"}>{stop.free_slots} slots</Badge>
+          <Button size="sm" variant="secondary" disabled={stop.free_slots <= 0} onClick={handleBookClick}>
+            <CalendarClock className="h-3.5 w-3.5" />
+            Book slot
+          </Button>
+        </div>
+      </div>
+      {open && (
+        <div className="flex flex-wrap items-end gap-2 pt-2 border-t border-black/8">
+          <Input
+            type="datetime-local"
+            label="Start time"
+            value={slotStart}
+            onChange={(e) => setSlotStart(e.target.value)}
+          />
+          <Select
+            label="Duration"
+            value={duration}
+            onChange={(e) => setDuration(e.target.value)}
+            options={STOP_DURATION_OPTIONS}
+          />
+          <Button size="sm" loading={submitting} onClick={handleConfirmBooking}>
+            Confirm booking
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 const WEATHER_OPTIONS = [
   { value: "Clear", label: "☀️ Clear" },
@@ -46,9 +134,12 @@ function getSaved(key: string, fallback: number): number {
 export default function TripPlannerPage() {
   const [vehicleList, setVehicleList] = useState<Vehicle[]>([]);
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
-  const [cities, setCities] = useState<string[]>([]);
+  const [originCities, setOriginCities] = useState<string[]>([]);
+  const [destCities, setDestCities] = useState<string[]>([]);
   const [origin, setOrigin] = useState("");
   const [destination, setDestination] = useState("");
+  const debouncedOrigin = useDebouncedValue(origin, 400);
+  const debouncedDestination = useDebouncedValue(destination, 400);
   // E: initialize from shared localStorage keys set by dashboard
   const [battery, setBattery] = useState(70);
   const [health, setHealth] = useState(90);
@@ -73,8 +164,20 @@ export default function TripPlannerPage() {
         setSelectedVehicle(saved ?? v[0]);
       }
     }).catch(() => {});
-    geocode.cities().then(setCities).catch(() => {});
+    geocode.cities().then((c) => { setOriginCities(c); setDestCities(c); }).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    const q = debouncedOrigin.trim();
+    if (q.length < 2) return;
+    geocode.suggest(q).then(setOriginCities).catch(() => {});
+  }, [debouncedOrigin]);
+
+  useEffect(() => {
+    const q = debouncedDestination.trim();
+    if (q.length < 2) return;
+    geocode.suggest(q).then(setDestCities).catch(() => {});
+  }, [debouncedDestination]);
 
   // Sync from localStorage after mount — avoids SSR/client hydration mismatch
   useEffect(() => {
@@ -98,8 +201,23 @@ export default function TripPlannerPage() {
         return;
       }
       setRouteCoords({ origin: [originGeo.lat, originGeo.lon!], destination: [destGeo.lat, destGeo.lon!] });
+
+      // Auto-fill conditions from real weather at the origin — user edits in the
+      // Conditions tab still take effect on the next "Plan trip" click.
+      let effectiveTemperature = temperature;
+      let effectiveWeather = weather;
+      try {
+        const originWeather = await weatherApi.current(originGeo.lat, originGeo.lon!);
+        effectiveTemperature = Math.round(originWeather.temperature_c);
+        effectiveWeather = originWeather.condition;
+        setTemperature(effectiveTemperature);
+        setWeather(effectiveWeather);
+      } catch {
+        // Weather lookup is best-effort — fall back to current manual conditions.
+      }
+
       const rangeRes = await predict.range({
-        battery_level: battery, temperature, weather, battery_health: health,
+        battery_level: battery, temperature: effectiveTemperature, weather: effectiveWeather, battery_health: health,
         vehicle_base_range_km: selectedVehicle.base_range_km,
         vehicle_name: selectedVehicle.name,
         terrain, traffic,
@@ -150,38 +268,41 @@ export default function TripPlannerPage() {
         <Card className="space-y-5">
           <div className="space-y-3">
             <h3 className="text-xs font-semibold text-[var(--muted)] uppercase tracking-wider">Route</h3>
-            <datalist id="trip-cities">
-              {cities.map((c) => <option key={c} value={c} />)}
+            <datalist id="trip-cities-origin">
+              {Array.from(new Set(originCities)).map((c) => <option key={c} value={c} />)}
+            </datalist>
+            <datalist id="trip-cities-destination">
+              {Array.from(new Set(destCities)).map((c) => <option key={c} value={c} />)}
             </datalist>
             <div className="relative flex flex-col gap-2">
               <Input
                 label="From"
                 placeholder="Chennai, Coimbatore, or 13.08, 80.27"
                 icon={<Navigation className="h-4 w-4" />}
-                list="trip-cities"
+                list="trip-cities-origin"
                 value={origin}
                 onChange={(e) => setOrigin(e.target.value)}
               />
               <div className="flex items-center gap-2 px-1">
-                <div className="h-px flex-1 bg-white/8" />
+                <div className="h-px flex-1 bg-black/8" />
                 <ArrowRight className="h-3 w-3 text-[var(--muted)]" />
-                <div className="h-px flex-1 bg-white/8" />
+                <div className="h-px flex-1 bg-black/8" />
               </div>
               <Input
                 label="To"
                 placeholder="Destination city or coordinates"
                 icon={<MapPin className="h-4 w-4" />}
-                list="trip-cities"
+                list="trip-cities-destination"
                 value={destination}
                 onChange={(e) => setDestination(e.target.value)}
               />
             </div>
           </div>
 
-          <div className="h-px bg-white/8" />
+          <div className="h-px bg-black/8" />
 
           {/* Tabs — collapse Vehicle/Battery + Conditions so defaults stay out of the way */}
-          <div className="flex gap-1 rounded-xl bg-white/4 p-1">
+          <div className="flex gap-1 rounded-xl bg-black/4 p-1">
             {tabs.map((t) => (
               <button
                 key={t.id}
@@ -189,7 +310,7 @@ export default function TripPlannerPage() {
                 onClick={() => setActiveTab(t.id)}
                 className={`flex-1 rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${
                   activeTab === t.id
-                    ? "bg-white/10 text-foreground shadow-sm"
+                    ? "bg-white text-foreground shadow-sm"
                     : "text-[var(--muted)] hover:text-foreground"
                 }`}
               >
@@ -254,57 +375,71 @@ export default function TripPlannerPage() {
             <>
               <DecisionBanner decision={result.decision} detail={result.detail} />
 
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
                 <MetricCard label="Trip Distance" value={formatKm(result.trip_distance_km)} icon={Map} color="accent" />
+                <MetricCard label="Travel Time" value={formatMinutes(result.duration_min)} icon={Clock} color="default" />
                 <MetricCard
                   label="Range Needed"
                   value={formatKm(result.needed_range_km)}
                   icon={Zap}
                   color={result.remaining_range_km >= 0 ? "success" : "danger"}
-                  subtext={`Remaining after trip: ${formatKm(result.remaining_range_km)}`}
+                />
+                <MetricCard
+                  label="Remaining Range"
+                  value={formatKm(result.remaining_range_km)}
+                  icon={BatteryCharging}
+                  color={result.remaining_range_km >= 0 ? "success" : "danger"}
                 />
               </div>
 
-              <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
-                {routeCoords && (
-                  <Card className="p-0 overflow-hidden">
-                    <MapView
-                      height={260}
-                      polyline={[routeCoords.origin, routeCoords.destination]}
-                      markers={[
-                        { position: routeCoords.origin, kind: "origin", popup: "From" },
-                        { position: routeCoords.destination, kind: "destination", popup: "To" },
-                        ...(result.backup_station
-                          ? [{
-                              position: [result.backup_station.latitude, result.backup_station.longitude] as [number, number],
-                              kind: "stationAvailable" as const,
-                              popup: (
-                                <div className="text-xs">
-                                  <p className="font-semibold">{result.backup_station.name}</p>
-                                  <p>{formatKm(result.backup_station.distance_km)} away · {formatMinutes(result.backup_station.wait_minutes)} wait</p>
-                                </div>
-                              ),
-                            }] as MapMarker[]
-                          : []),
-                      ]}
-                    />
-                  </Card>
-                )}
+              {routeCoords && (
+                <Card className="p-0 overflow-hidden">
+                  <MapView
+                    height={320}
+                    polyline={result.polyline ?? undefined}
+                    markers={[
+                      { position: routeCoords.origin, kind: "origin", popup: "From" },
+                      { position: routeCoords.destination, kind: "destination", popup: "To" },
+                      ...result.charging_stops.map((s): MapMarker => ({
+                        position: [s.latitude, s.longitude],
+                        kind: s.free_slots > 0 ? "stationAvailable" : "stationBusy",
+                        popup: (
+                          <div className="text-xs">
+                            <p className="font-semibold">{s.name}</p>
+                            <p>{formatKm(s.distance_km)} along route · {formatMinutes(s.wait_minutes)} wait</p>
+                          </div>
+                        ),
+                      })),
+                    ]}
+                  />
+                </Card>
+              )}
 
-                {result.backup_station && (
-                  <Card>
-                    <h3 className="text-xs font-semibold text-[var(--muted)] uppercase tracking-wider mb-3">Nearest Charger</h3>
-                    <p className="font-medium text-sm">{result.backup_station.name}</p>
-                    <div className="flex flex-wrap gap-2 mt-2">
-                      <Badge variant="accent">{formatKm(result.backup_station.distance_km)} away</Badge>
-                      <Badge variant="default">{formatMinutes(result.backup_station.wait_minutes)} wait</Badge>
-                      <Badge variant="success">{result.backup_station.rate_kw} kW</Badge>
-                      <Badge variant={result.backup_station.free_slots > 0 ? "success" : "danger"}>
-                        {result.backup_station.free_slots} slots
-                      </Badge>
+              <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
+                <Card>
+                  <h3 className="text-xs font-semibold text-[var(--muted)] uppercase tracking-wider mb-3">Recommended Charging Stops</h3>
+                  {result.charging_stops.length > 0 ? (
+                    <div className="space-y-3">
+                      {result.charging_stops.map((s, i) => (
+                        <ChargingStopRow key={`${s.station_id}-${i}`} stop={s} />
+                      ))}
                     </div>
-                  </Card>
-                )}
+                  ) : (
+                    <p className="text-xs text-[var(--muted)]">No chargers found within range of this route.</p>
+                  )}
+                </Card>
+
+                <Card>
+                  <h3 className="flex items-center gap-1.5 text-xs font-semibold text-[var(--muted)] uppercase tracking-wider mb-3">
+                    <Mountain className="h-3.5 w-3.5" />
+                    Elevation Profile
+                  </h3>
+                  {result.elevation_profile ? (
+                    <ElevationChart data={result.elevation_profile} />
+                  ) : (
+                    <p className="text-xs text-[var(--muted)]">Elevation data unavailable for this route.</p>
+                  )}
+                </Card>
               </div>
             </>
           ) : (

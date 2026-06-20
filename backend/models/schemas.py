@@ -153,7 +153,8 @@ class TripEvaluateRequest(BaseModel):
     safety_buffer_percent: float = 15.0
 
 
-class BackupStation(BaseModel):
+class ChargingStop(BaseModel):
+    station_id: int
     name: str
     distance_km: float
     wait_minutes: float
@@ -163,13 +164,22 @@ class BackupStation(BaseModel):
     longitude: float
 
 
+class ElevationPoint(BaseModel):
+    distance_km: float
+    elevation_m: float
+
+
 class TripResult(BaseModel):
     trip_distance_km: float
+    duration_min: float
     needed_range_km: float
     remaining_range_km: float
     decision: str
     detail: str
-    backup_station: BackupStation | None = None
+    polyline: list[list[float]] | None = None
+    is_real_route: bool = False
+    elevation_profile: list[ElevationPoint] | None = None
+    charging_stops: list[ChargingStop] = []
 
 
 # ── History ───────────────────────────────────────────────────────────────────
@@ -227,6 +237,7 @@ class VehicleProfile(BaseModel):
     base_range_km: float
     fast_charge_bias: float
     full_charge_bias: float
+    nominal_voltage_v: float
 
 
 # ── Geocode ───────────────────────────────────────────────────────────────────
@@ -237,6 +248,17 @@ class GeocodeResponse(BaseModel):
     label: str | None
     status: str
     message: str
+
+
+# ── Weather ───────────────────────────────────────────────────────────────────
+
+class WeatherResponse(BaseModel):
+    temperature_c: float
+    condition: str
+    condition_label: str
+    location_label: str | None
+    humidity: float
+    wind_kmph: float
 
 
 # ── Cities ────────────────────────────────────────────────────────────────────
@@ -254,3 +276,29 @@ class CityOut(BaseModel):
     display_name: str
     lat: float
     lon: float
+
+
+# ── Location ──────────────────────────────────────────────────────────────────
+
+class RegionResponse(BaseModel):
+    country: str | None
+    country_code: str | None
+    city: str | None
+
+
+# ── Bookings ──────────────────────────────────────────────────────────────────
+
+class BookingIn(BaseModel):
+    station_id: int
+    slot_start: str
+    slot_end: str
+
+
+class BookingOut(BaseModel):
+    id: int
+    station_id: int
+    station_name: str
+    slot_start: str
+    slot_end: str
+    status: str
+    created_at: str

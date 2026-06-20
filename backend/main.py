@@ -5,8 +5,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from models.db import City, Station, User, init_db, engine
 from sqlalchemy.orm import Session
-from routers import auth, geocode, history, predict, stations, trips, vehicles
-from routers import admin
+from routers import auth, geocode, history, predict, stations, trips, vehicles, weather
+from routers import admin, bookings, location
 
 app = FastAPI(title="VoltIQ API", version="1.0.0")
 
@@ -25,7 +25,10 @@ app.include_router(trips.router)
 app.include_router(history.router)
 app.include_router(vehicles.router)
 app.include_router(geocode.router)
+app.include_router(weather.router)
 app.include_router(admin.router)
+app.include_router(bookings.router)
+app.include_router(location.router)
 
 
 def _seed_stations(db: Session) -> None:
@@ -47,6 +50,7 @@ def _seed_stations(db: Session) -> None:
             rate_kw=float(row["rate_kw"]),
             load_kw=float(row["load_kw"]),
             status=str(row["status"]),
+            country="IN",
         ))
     db.commit()
 
@@ -57,7 +61,7 @@ def _seed_cities(db: Session) -> None:
     from services.geocoding_service import SEED_CITY_MAP
     for name, (lat, lon, display_name) in SEED_CITY_MAP.items():
         if not db.query(City).filter(City.name == name).first():
-            db.add(City(name=name, display_name=display_name, lat=lat, lon=lon))
+            db.add(City(name=name, display_name=display_name, lat=lat, lon=lon, country="IN"))
     db.commit()
 
 

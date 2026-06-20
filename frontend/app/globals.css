@@ -1,18 +1,18 @@
 @import "tailwindcss";
 
 :root {
-  --background: #0a0f14;
-  --surface: #111827;
-  --surface-2: #1a2333;
-  --border: rgba(255, 255, 255, 0.08);
-  --foreground: #e2e8f0;
-  --muted: #7d8aa0;
-  --accent: #00d4ff;
-  --accent-glow: rgba(0, 212, 255, 0.15);
-  --success: #22c55e;
-  --warning: #eab308;
-  --danger: #ef4444;
-  --radius: 12px;
+  --background: #f7f9f8;
+  --surface: #ffffff;
+  --surface-2: #f0f4f2;
+  --border: rgba(15, 23, 20, 0.08);
+  --foreground: #10231a;
+  --muted: #6b7d74;
+  --accent: #16a34a;
+  --accent-glow: rgba(22, 163, 74, 0.18);
+  --success: #16a34a;
+  --warning: #d97706;
+  --danger: #dc2626;
+  --radius: 14px;
 }
 
 @theme inline {
@@ -49,16 +49,15 @@ body {
 /* scrollbar */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.25); }
+::-webkit-scrollbar-thumb { background: rgba(16, 35, 26, 0.15); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(16, 35, 26, 0.25); }
 
-/* glass card */
+/* glass card — soft elevated card on the light theme, name kept for minimal diff */
 .glass {
-  background: rgba(255, 255, 255, 0.04);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
+  box-shadow: 0 1px 2px rgba(16, 35, 26, 0.04), 0 4px 16px rgba(16, 35, 26, 0.04);
 }
 
 /* input base */
@@ -75,7 +74,7 @@ input[type="range"]::-webkit-slider-thumb {
   height: 20px;
   border-radius: 50%;
   background: var(--accent);
-  border: 2px solid rgba(255, 255, 255, 0.9);
+  border: 2px solid #ffffff;
   box-shadow: 0 0 6px var(--accent-glow);
   cursor: pointer;
 }
@@ -84,7 +83,7 @@ input[type="range"]::-moz-range-thumb {
   height: 20px;
   border-radius: 50%;
   background: var(--accent);
-  border: 2px solid rgba(255, 255, 255, 0.9);
+  border: 2px solid #ffffff;
   box-shadow: 0 0 6px var(--accent-glow);
   cursor: pointer;
 }

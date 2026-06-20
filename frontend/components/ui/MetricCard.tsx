@@ -4,11 +4,11 @@ import { Card } from "./Card";
 type Color = "accent" | "success" | "warning" | "danger" | "default";
 
 const colorMap: Record<Color, { value: string; bg: string }> = {
-  accent: { value: "text-cyan-400", bg: "bg-cyan-500/10" },
-  success: { value: "text-green-400", bg: "bg-green-500/10" },
-  warning: { value: "text-yellow-400", bg: "bg-yellow-500/10" },
-  danger: { value: "text-red-400", bg: "bg-red-500/10" },
-  default: { value: "text-slate-300", bg: "bg-white/5" },
+  accent: { value: "text-green-600", bg: "bg-green-500/10" },
+  success: { value: "text-green-600", bg: "bg-green-500/10" },
+  warning: { value: "text-yellow-600", bg: "bg-yellow-500/10" },
+  danger: { value: "text-red-600", bg: "bg-red-500/10" },
+  default: { value: "text-slate-600", bg: "bg-black/5" },
 };
 
 export function MetricCard({

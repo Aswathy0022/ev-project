@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-# Used only at startup to seed the cities DB table. Not used at runtime.
+# Seeds the cities DB table at startup. geocode_place() only consults this table
+# as a fallback when live geocoding fails (network/service errors) — never primary.
 SEED_CITY_MAP: dict[str, tuple[float, float, str]] = {
     "kochi": (9.9312, 76.2673, "Kochi, Kerala, India"),
     "cochin": (9.9312, 76.2673, "Kochi, Kerala, India"),
@@ -76,6 +77,18 @@ SEED_CITY_MAP: dict[str, tuple[float, float, str]] = {
 }
 
 
+def _build_nominatim():
+    # Some Python.org macOS builds don't trust the system cert store, which makes
+    # geopy's HTTPS calls fail with CERTIFICATE_VERIFY_FAILED. Pin the certifi bundle
+    # explicitly so geocoding works regardless of the interpreter's default trust store.
+    import ssl
+    import certifi
+    from geopy.geocoders import Nominatim
+
+    ctx = ssl.create_default_context(cafile=certifi.where())
+    return Nominatim(user_agent="voltiq-ev-assistant", ssl_context=ctx)
+
+
 @dataclass
 class GeocodeResult:
     lat: float | None
@@ -96,6 +109,76 @@ def _parse_coordinate_text(place_text: str) -> GeocodeResult | None:
     return GeocodeResult(lat=lat, lon=lon, label=f"{lat:.5f}, {lon:.5f}", status="success", message="Used coordinates directly.")
 
 
+@dataclass
+class RegionResult:
+    country: str | None
+    country_code: str | None
+    city: str | None
+
+
+def reverse_geocode_region(lat: float, lon: float) -> RegionResult:
+    try:
+        from geopy.exc import GeocoderServiceError, GeocoderTimedOut, GeocoderUnavailable
+    except Exception:
+        return RegionResult(None, None, None)
+
+    try:
+        geocoder = _build_nominatim()
+        location = geocoder.reverse((lat, lon), timeout=10, exactly_one=True)
+    except (GeocoderTimedOut, GeocoderUnavailable, GeocoderServiceError):
+        return RegionResult(None, None, None)
+
+    if not location:
+        return RegionResult(None, None, None)
+
+    address = location.raw.get("address", {})
+    city = address.get("city") or address.get("town") or address.get("village") or address.get("county")
+    country = address.get("country")
+    country_code = address.get("country_code")
+    return RegionResult(
+        country=country,
+        country_code=country_code.upper() if country_code else None,
+        city=city,
+    )
+
+
+def suggest_places(
+    query: str,
+    country_code: str | None = None,
+    limit: int = 8,
+    city_map: dict[str, tuple[float, float, str]] | None = None,
+) -> list[str]:
+    query = (query or "").strip()
+    if len(query) < 2:
+        return []
+
+    def _offline_matches() -> list[str]:
+        if not city_map:
+            return []
+        q = query.lower()
+        labels = {label for key, (_, _, label) in city_map.items() if q in key}
+        return sorted(labels)[:limit]
+
+    try:
+        from geopy.exc import GeocoderServiceError, GeocoderTimedOut, GeocoderUnavailable
+    except Exception:
+        return _offline_matches()
+
+    try:
+        geocoder = _build_nominatim()
+        kwargs = {"exactly_one": False, "limit": limit, "timeout": 10}
+        if country_code:
+            kwargs["country_codes"] = country_code.lower()
+        locations = geocoder.geocode(query, **kwargs)
+    except (GeocoderTimedOut, GeocoderUnavailable, GeocoderServiceError):
+        return _offline_matches()
+
+    if not locations:
+        return _offline_matches()
+
+    return [loc.address for loc in locations]
+
+
 def geocode_place(
     place_text: str,
     city_map: dict[str, tuple[float, float, str]] | None = None,
@@ -108,23 +191,25 @@ def geocode_place(
     if parsed:
         return parsed
 
-    if city_map:
-        key = place_text.strip().lower()
-        if key in city_map:
-            lat, lon, label = city_map[key]
-            return GeocodeResult(lat=lat, lon=lon, label=label, status="success", message=f"Matched: {label}")
+    def _fallback(status: str, message: str) -> GeocodeResult:
+        if city_map:
+            key = place_text.strip().lower()
+            if key in city_map:
+                lat, lon, label = city_map[key]
+                return GeocodeResult(lat=lat, lon=lon, label=label, status="success",
+                                      message=f"Matched (offline cache): {label}")
+        return GeocodeResult(None, None, None, status, message)
 
     try:
         from geopy.exc import GeocoderServiceError, GeocoderTimedOut, GeocoderUnavailable
-        from geopy.geocoders import Nominatim
     except Exception:
-        return GeocodeResult(None, None, None, "missing_dependency", "geopy not installed.")
+        return _fallback("missing_dependency", "geopy not installed.")
 
     try:
-        geocoder = Nominatim(user_agent="voltiq-ev-assistant")
+        geocoder = _build_nominatim()
         location = geocoder.geocode(place_text, exactly_one=True, timeout=10)
     except (GeocoderTimedOut, GeocoderUnavailable, GeocoderServiceError):
-        return GeocodeResult(None, None, None, "network_error", "Geocoding service unavailable.")
+        return _fallback("network_error", "Geocoding service unavailable.")
 
     if not location:
         return GeocodeResult(None, None, None, "not_found", "Place not found. Try coordinates.")
